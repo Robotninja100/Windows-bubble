@@ -1,0 +1,112 @@
+using System.Collections.ObjectModel;
+
+namespace CursorBubble.Config;
+
+/// <summary>
+/// One slice of the radial menu.
+/// </summary>
+public sealed class SegmentConfig
+{
+    /// <summary>Text shown on the segment.</summary>
+    public string Label { get; set; } = "New";
+
+    /// <summary>Optional path to an icon image (png/ico) shown above the label.</summary>
+    public string? IconPath { get; set; }
+
+    public ActionType Action { get; set; } = ActionType.OpenPath;
+
+    /// <summary>
+    /// The action target: a path/URL for OpenPath, an exe path for LaunchProgram,
+    /// or a script path / inline command for RunScript.
+    /// </summary>
+    public string Target { get; set; } = "";
+
+    /// <summary>Extra command-line arguments (LaunchProgram / script file).</summary>
+    public string? Arguments { get; set; }
+}
+
+/// <summary>
+/// The visual style of the glass bubble. Defaults reproduce the clean, light
+/// frosted-glass look from the design reference.
+/// </summary>
+public sealed class StyleConfig
+{
+    /// <summary>Glass tint colour as #RRGGBB.</summary>
+    public string TintColor { get; set; } = "#FFFFFF";
+
+    /// <summary>Opacity of the tint laid over the acrylic blur (0..1).</summary>
+    public double TintOpacity { get; set; } = 0.30;
+
+    /// <summary>Opacity of the individual segment fills (0..1).</summary>
+    public double SegmentOpacity { get; set; } = 0.35;
+
+    /// <summary>Accent colour for the highlighted segment as #RRGGBB.</summary>
+    public string HighlightColor { get; set; } = "#EAF2FF";
+
+    /// <summary>Colour of the segment labels / centre text as #RRGGBB.</summary>
+    public string LabelColor { get; set; } = "#20242C";
+
+    /// <summary>Use acrylic blur behind the bubble. Falls back to a flat tint if off.</summary>
+    public bool UseAcrylicBlur { get; set; } = true;
+
+    // ---- Layout (device-independent pixels) ----
+    /// <summary>Outer radius of the ring.</summary>
+    public double OuterRadius { get; set; } = 200;
+
+    /// <summary>Inner radius (dead zone in the centre = cancel).</summary>
+    public double InnerRadius { get; set; } = 60;
+
+    /// <summary>Angular gap between segments, in degrees (visual separation).</summary>
+    public double SegmentGap { get; set; } = 4;
+
+    /// <summary>Angle (degrees, clockwise from the top) where the first segment starts.</summary>
+    public double StartAngle { get; set; } = 0;
+}
+
+/// <summary>
+/// Root configuration object, persisted as JSON.
+/// </summary>
+public sealed class AppConfig
+{
+    public ObservableCollection<SegmentConfig> Segments { get; set; } = new();
+
+    public StyleConfig Style { get; set; } = new();
+
+    /// <summary>Launch CursorBubble automatically when Windows starts.</summary>
+    public bool StartWithWindows { get; set; }
+
+    /// <summary>
+    /// A sensible starter configuration so the bubble is useful on first run.
+    /// </summary>
+    public static AppConfig CreateDefault()
+    {
+        var cfg = new AppConfig();
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Documenten\nopenen", Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
+        });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Webbrowser\nstarten", Action = ActionType.OpenPath, Target = "https://www.google.com"
+        });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Rekenmachine", Action = ActionType.LaunchProgram, Target = "calc.exe"
+        });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Draai Back-up\nScript",
+            Action = ActionType.RunScript,
+            Target = "powershell -NoProfile -Command \"Write-Host 'Vervang dit door je eigen back-up script'\""
+        });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "PowerShell\nopenen", Action = ActionType.LaunchProgram, Target = "powershell.exe"
+        });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Instellingen\nopenen", Action = ActionType.OpenPath, Target = "ms-settings:"
+        });
+        return cfg;
+    }
+}
