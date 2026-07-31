@@ -1,8 +1,10 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using CursorBubble.Accessibility;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
 using CursorBubble.Diagnostics;
@@ -244,13 +246,33 @@ public partial class RadialMenuWindow : Window
         }
 
         // Deliberately nothing selected: with the first segment pre-selected, a
-        // reflexive Enter would run an arbitrary script.
-        SetSelection(-1);
+        // reflexive Enter would run an arbitrary script. Announced as the opening
+        // sentence rather than as a selection change.
+        SetSelection(-1, announce: false);
 
         if (mode == MenuInputMode.Keyboard)
+        {
+            Say(MenuAnnouncement.Opened(_config.Segments.Count));
             TakeFocus(hwnd);
+        }
         else
+        {
             UpdateCursor(cursor);
+        }
+    }
+
+    /// <summary>
+    /// Put <paramref name="text"/> where a screen reader will read it.
+    ///
+    /// Both mechanisms on purpose: the proxy is the focused element, and Narrator
+    /// follows focus far more reliably than it follows a live region in a
+    /// transient top-most tool window — but the name alone changes nothing once
+    /// focus has already landed, so the live region carries the updates.
+    /// </summary>
+    private void Say(string text)
+    {
+        AutomationProperties.SetName(AnnounceProxy, text);
+        Announce.LiveRegion(AnnounceProxy);
     }
 
     /// <summary>
@@ -265,7 +287,10 @@ public partial class RadialMenuWindow : Window
     {
         Activate();
         NativeMethods.SetForegroundWindow(hwnd);
-        Focus();
+
+        // The proxy, not the window: it is the element that carries the
+        // announcement, and Narrator reads the focused element.
+        AnnounceProxy.Focus();
 
         // If the grant did not hold, the bubble is on screen but deaf. Log it
         // once so the field diagnosis exists rather than "it just does nothing".
@@ -276,13 +301,22 @@ public partial class RadialMenuWindow : Window
     /// <summary>
     /// The one place the selection changes, whichever input drove it.
     /// </summary>
-    private void SetSelection(int index)
+    private void SetSelection(int index, bool announce = true)
     {
         if (index < 0 || index >= _config.Segments.Count)
             index = -1;
 
+        bool changed = index != _currentIndex;
         _currentIndex = index;
         _menu.SetHighlight(index);
+
+        // Keyboard mode only: the mouse path would fire this on every pixel of
+        // movement, and there is no screen-reader user driving it with a mouse.
+        if (announce && changed && _mode == MenuInputMode.Keyboard && IsOpen)
+        {
+            string? label = index >= 0 ? _config.Segments[index].Label : null;
+            Say(MenuAnnouncement.Selected(index, _config.Segments.Count, label));
+        }
     }
 
     /// <summary>Move the keyboard selection around the ring; see RadialMath.StepSelection.</summary>
