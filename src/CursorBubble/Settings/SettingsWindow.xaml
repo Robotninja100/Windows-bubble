@@ -111,6 +111,7 @@
                     <ListBoxItem Content="Segmenten" Padding="16,10" />
                     <ListBoxItem Content="Stijl" Padding="16,10" />
                     <ListBoxItem Content="AI" Padding="16,10" />
+                    <ListBoxItem Content="Claude Code" Padding="16,10" />
                 </ListBox>
             </StackPanel>
         </Border>
@@ -334,6 +335,30 @@
                     <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
                         Een sleutel maak je aan op console.anthropic.com. De sleutel wordt versleuteld
                         (Windows DPAPI, alleen voor jouw account) opgeslagen in config.json.
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Claude Code -->
+                <StackPanel x:Name="PanelClaude" Visibility="Collapsed">
+                    <TextBlock Text="Claude Code-inbox" Style="{StaticResource Heading}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}" Margin="0,0,0,10">
+                        Zie je Claude Code-sessies (in VS Code of een terminal) in de bubbel zodra ze
+                        stoppen of een vraag hebben, en beantwoord ze vanuit een glazen venster. Koppel
+                        hiervoor CursorBubble aan Claude Code — dat voegt hooks toe aan je
+                        ~/.claude/settings.json. Geef een vakje de actie “Claude Code inbox openen”.
+                    </TextBlock>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <Button x:Name="LinkClaudeBtn" Content="Koppel Claude Code" Margin="0"
+                                Background="#4C8DFF" Foreground="White" Click="LinkClaude_Click" />
+                        <Button x:Name="UnlinkClaudeBtn" Content="Ontkoppelen" Click="UnlinkClaude_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="ClaudeStatusText" Foreground="{StaticResource SubText}"
+                               Margin="0,10,0,0" TextWrapping="Wrap" />
+                    <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
+                        Antwoorden gaan via het klembord naar het juiste venster (focus → plakken →
+                        Enter). Herstart lopende Claude Code-sessies na het koppelen zodat de hooks
+                        actief worden.
                     </TextBlock>
                 </StackPanel>
             </Grid>

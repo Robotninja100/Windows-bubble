@@ -1,8 +1,11 @@
+using System.IO;
 using System.Windows;
 using CursorBubble.Actions;
+using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
+using CursorBubble.Responder;
 using CursorBubble.Settings;
 using CursorBubble.Tray;
 
@@ -20,11 +23,22 @@ public partial class App : Application
     private RadialMenuWindow? _overlay;
     private TrayIcon? _tray;
     private SettingsWindow? _settings;
+    private ResponderWindow? _responder;
+    private FileSystemWatcher? _inboxWatcher;
 
     private AppConfig _config = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Hook mode: launched by Claude Code with piped JSON on stdin. Record the
+        // session and exit without any UI (and before the single-instance mutex).
+        if (e.Args.Length > 0 && e.Args[0] == "--hook")
+        {
+            HookHandler.Run();
+            Shutdown();
+            return;
+        }
+
         base.OnStartup(e);
 
         // Only allow one running instance.
@@ -52,6 +66,8 @@ public partial class App : Application
         _hook.MenuMove += p => Dispatcher.InvokeAsync(() => _overlay!.UpdateCursor(p));
         _hook.MenuCommit += () => Dispatcher.InvokeAsync(OnCommit);
         _hook.Install();
+
+        StartInboxWatcher();
     }
 
     private void OnCommit()
@@ -60,9 +76,60 @@ public partial class App : Application
         if (segment is null)
             return; // cancelled in the dead zone
 
+        if (segment.Action == ActionType.ClaudeInbox)
+        {
+            OpenResponder();
+            return;
+        }
+
         string? error = ActionRunner.Run(segment);
         if (error is not null)
             _tray?.ShowError(error);
+    }
+
+    private void OpenResponder()
+    {
+        if (_responder is not null)
+        {
+            _responder.Activate();
+            _responder.ReloadInbox();
+            return;
+        }
+
+        _responder = new ResponderWindow();
+        _responder.Closed += (_, _) => _responder = null;
+        _responder.Show();
+        _responder.Activate();
+    }
+
+    /// <summary>Watch the inbox folder and show a tray notification for new sessions.</summary>
+    private void StartInboxWatcher()
+    {
+        try
+        {
+            Directory.CreateDirectory(InboxStore.Dir);
+            _inboxWatcher = new FileSystemWatcher(InboxStore.Dir, "*.json")
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                EnableRaisingEvents = true
+            };
+            _inboxWatcher.Created += (_, _) => Dispatcher.InvokeAsync(NotifyInboxChanged);
+        }
+        catch
+        {
+            // watcher is optional — the bubble badge still reflects the count on open
+        }
+    }
+
+    private void NotifyInboxChanged()
+    {
+        var latest = InboxStore.LoadAll().FirstOrDefault();
+        if (latest is null)
+            return;
+
+        string what = latest.State == SessionState.Waiting ? "wacht op je" : "is klaar";
+        string project = string.IsNullOrWhiteSpace(latest.ProjectName) ? "een sessie" : latest.ProjectName;
+        _tray?.ShowInfo("Claude Code", $"{project} {what}.");
     }
 
     private void OpenSettings()
@@ -98,6 +165,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _inboxWatcher?.Dispose();
         _hook?.Dispose();
         _tray?.Dispose();
         _overlay?.Close();

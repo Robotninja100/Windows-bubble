@@ -65,6 +65,16 @@ public sealed class TrayIcon : IDisposable
     public void ShowError(string message)
     {
         _notifyIcon.BalloonTipTitle = "CursorBubble";
+        _notifyIcon.BalloonTipIcon = ToolTipIcon.Warning;
+        _notifyIcon.BalloonTipText = message;
+        _notifyIcon.ShowBalloonTip(4000);
+    }
+
+    /// <summary>Show an informational tray notification.</summary>
+    public void ShowInfo(string title, string message)
+    {
+        _notifyIcon.BalloonTipTitle = title;
+        _notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
         _notifyIcon.BalloonTipText = message;
         _notifyIcon.ShowBalloonTip(4000);
     }

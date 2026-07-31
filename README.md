@@ -68,6 +68,34 @@ in de bubbel kiest. De API-sleutel wordt **versleuteld** opgeslagen in
 Windows-account op deze pc kan hem ontsleutelen. Elke generatie kost een kleine
 hoeveelheid API-tegoed.
 
+## Claude Code-inbox
+
+Werk je met meerdere Claude Code-sessies (in VS Code of losse terminals)? Dan
+kun je ze vanuit de bubbel beantwoorden.
+
+1. **Instellingen → Claude Code → Koppel Claude Code.** Dit voegt `Stop`- en
+   `Notification`-hooks toe aan je `~/.claude/settings.json`. Herstart lopende
+   sessies zodat de hooks actief worden.
+2. Zodra een sessie **stopt** of **een vraag heeft**, verschijnt er een
+   tray-melding en een **badge** met het aantal op het "Claude Code"-vakje in de
+   bubbel.
+3. Kies dat vakje → er opent een glazen venster met de openstaande sessies.
+   Bovenin de vraag/status + context, eronder een **typeveld**.
+4. Typ je antwoord → **Verstuur** → CursorBubble zet het op het klembord, brengt
+   het juiste venster naar voren en plakt + verstuurt het (Enter).
+
+**Hoe het werkt / beperkingen:**
+- Detectie loopt via Claude Code-hooks; de hook geeft de laatste boodschap
+  (`last_assistant_message`) of de notificatie rechtstreeks mee — het transcript
+  wordt niet geparsed (dat formaat is onstabiel).
+- Antwoorden terugsturen wordt door Claude Code **niet officieel ondersteund**;
+  CursorBubble simuleert toetsaanslagen in het bijbehorende venster. Het juiste
+  venster wordt bepaald via het ouder-proces van de sessie (met terugval op de
+  projectmap-naam in de venstertitel). Een korte focuswissel is zichtbaar, en de
+  match is heuristisch — lukt het niet, dan staat je antwoord op het klembord om
+  zelf te plakken.
+- Gestructureerde keuzevragen komen als tekst binnen; je typt je keuze.
+
 ## Bouwen en draaien
 
 > Vereist **Windows 10/11** en de **.NET 8 SDK** (WPF bouwt alleen op Windows).
@@ -118,6 +146,8 @@ src/CursorBubble/
   Overlay/                 transparant venster + radiale glas-tekening
   Settings/                instellingenvenster met live preview + AI-dialoog
   Ai/                      scriptgeneratie via de Claude-API + opslag
+  ClaudeCode/              hook-handler, inbox-opslag, hook-installer
+  Responder/               glazen venster om sessies te beantwoorden
   Config/                  model + JSON-opslag
   Actions/                 acties uitvoeren
   Tray/                    systeemvak-icoon + autostart

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using CursorBubble.Ai;
+using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
@@ -77,6 +78,7 @@ public partial class SettingsWindow : Window
             new ActionOption("Openen (bestand / map / URL)", ActionType.OpenPath),
             new ActionOption("Programma starten", ActionType.LaunchProgram),
             new ActionOption("Script / commando uitvoeren", ActionType.RunScript),
+            new ActionOption("Claude Code inbox openen", ActionType.ClaudeInbox),
         };
         ActionBox.DisplayMemberPath = nameof(ActionOption.Display);
         ActionBox.SelectedValuePath = nameof(ActionOption.Value);
@@ -159,6 +161,7 @@ public partial class SettingsWindow : Window
         PanelSegmenten.Visibility = Visibility.Collapsed;
         PanelStijl.Visibility = Visibility.Collapsed;
         PanelAi.Visibility = Visibility.Collapsed;
+        PanelClaude.Visibility = Visibility.Collapsed;
 
         switch (NavList.SelectedIndex)
         {
@@ -166,6 +169,7 @@ public partial class SettingsWindow : Window
             case 2: PanelSegmenten.Visibility = Visibility.Visible; break;
             case 3: PanelStijl.Visibility = Visibility.Visible; break;
             case 4: PanelAi.Visibility = Visibility.Visible; break;
+            case 5: PanelClaude.Visibility = Visibility.Visible; UpdateClaudeStatus(); break;
             default: PanelAlgemeen.Visibility = Visibility.Visible; break;
         }
     }
@@ -410,6 +414,45 @@ public partial class SettingsWindow : Window
         };
         if (dlg.ShowDialog(this) == true)
             IconBox.Text = dlg.FileName;
+    }
+
+    // ---- Claude Code linking ------------------------------------------------
+
+    private void UpdateClaudeStatus()
+    {
+        bool linked = HookInstaller.IsInstalled();
+        ClaudeStatusText.Text = linked
+            ? "Status: gekoppeld. Nieuwe (of herstarte) Claude Code-sessies melden zich in de bubbel."
+            : "Status: niet gekoppeld.";
+        LinkClaudeBtn.IsEnabled = !linked;
+        UnlinkClaudeBtn.IsEnabled = linked;
+    }
+
+    private void LinkClaude_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            HookInstaller.Install();
+            ClaudeStatusText.Text = "Gekoppeld! Herstart lopende Claude Code-sessies zodat de hooks actief worden.";
+        }
+        catch (Exception ex)
+        {
+            ClaudeStatusText.Text = "Koppelen mislukt: " + ex.Message;
+        }
+        UpdateClaudeStatus();
+    }
+
+    private void UnlinkClaude_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            HookInstaller.Uninstall();
+        }
+        catch (Exception ex)
+        {
+            ClaudeStatusText.Text = "Ontkoppelen mislukt: " + ex.Message;
+        }
+        UpdateClaudeStatus();
     }
 
     // ---- preview & save -----------------------------------------------------

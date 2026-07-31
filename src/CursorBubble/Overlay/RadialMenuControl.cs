@@ -42,6 +42,9 @@ public sealed class RadialMenuControl : Canvas
     public double OuterRadius => _outer;
     public double InnerRadius => _inner;
 
+    /// <summary>Number of pending Claude Code sessions, shown as a badge on the inbox segment.</summary>
+    public int InboxCount { get; set; }
+
     public void Build(AppConfig config)
     {
         Children.Clear();
@@ -235,6 +238,37 @@ public sealed class RadialMenuControl : Canvas
         SetLeft(panel, p.X - desired.Width / 2.0);
         SetTop(panel, p.Y - desired.Height / 2.0);
         Children.Add(panel);
+
+        if (segment.Action == ActionType.ClaudeInbox && InboxCount > 0)
+            AddBadge(cx, cy, midAngle, InboxCount);
+    }
+
+    /// <summary>Draw a small count badge near the outer edge of a segment.</summary>
+    private void AddBadge(double cx, double cy, double midAngle, int count)
+    {
+        Point p = PointOnCircle(cx, cy, _outer - 20, midAngle);
+        double size = 24;
+
+        var host = new Grid { Width = size, Height = size };
+        host.Children.Add(new Ellipse
+        {
+            Fill = new SolidColorBrush(Color.FromRgb(0xE0, 0x3A, 0x3A)),
+            Stroke = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+            StrokeThickness = 1.5
+        });
+        host.Children.Add(new TextBlock
+        {
+            Text = count > 99 ? "99+" : count.ToString(),
+            Foreground = Brushes.White,
+            FontSize = count > 9 ? 10 : 12,
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        SetLeft(host, p.X - size / 2.0);
+        SetTop(host, p.Y - size / 2.0);
+        Children.Add(host);
     }
 
     private void DrawEmptyHint(double cx, double cy)

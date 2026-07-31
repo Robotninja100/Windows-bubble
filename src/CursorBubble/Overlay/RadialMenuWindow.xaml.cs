@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
 using CursorBubble.Native;
 
@@ -80,6 +81,14 @@ public partial class RadialMenuWindow : Window
     /// <summary>Show the bubble centred on the given (physical pixel) cursor point.</summary>
     public void ShowAt(ScreenPoint cursor)
     {
+        // Refresh the Claude Code inbox badge with the current pending count.
+        int newCount = InboxStore.UnansweredCount();
+        if (newCount != _menu.InboxCount)
+        {
+            _menu.InboxCount = newCount;
+            _menu.Build(_config);
+        }
+
         (double scale, NativeMethods.RECT work) = GetMonitorMetrics(cursor);
         _scale = scale;
 

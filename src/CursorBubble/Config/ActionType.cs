@@ -12,5 +12,8 @@ public enum ActionType
     LaunchProgram,
 
     /// <summary>Run a script (.bat/.cmd/.ps1) or an inline PowerShell command.</summary>
-    RunScript
+    RunScript,
+
+    /// <summary>Open the Claude Code inbox (pending sessions to answer).</summary>
+    ClaudeInbox
 }

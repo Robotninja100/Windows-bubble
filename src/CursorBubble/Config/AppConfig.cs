@@ -144,6 +144,11 @@ public sealed class AppConfig
             Label = "Instellingen\nopenen", Glyph = "",
             Action = ActionType.OpenPath, Target = "ms-settings:"
         });
+        cfg.Segments.Add(new SegmentConfig
+        {
+            Label = "Claude Code",
+            Action = ActionType.ClaudeInbox
+        });
         return cfg;
     }
 }
