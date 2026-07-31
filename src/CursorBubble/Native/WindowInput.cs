@@ -7,17 +7,30 @@ namespace CursorBubble.Native;
 /// <summary>
 /// Finds the top-level window that owns a Claude Code session's terminal and
 /// delivers a reply to it by focusing the window and simulating Ctrl+V + Enter.
-/// The clipboard is used for the text (reliable for any Unicode); the caller
-/// sets it on the UI thread.
+///
+/// Delivery is deliberately conservative: keystrokes are only injected once the
+/// target window is confirmed to be the foreground window. If focus cannot be
+/// taken, nothing is typed and the caller is told the reply was not delivered —
+/// pressing Enter in whatever window happens to be focused could run a command
+/// the user never intended.
 /// </summary>
 public static class WindowInput
 {
+    /// <summary>Processes that plausibly host a Claude Code session (used for title fallback).</summary>
+    private static readonly HashSet<string> HostProcesses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Code", "Code - Insiders", "VSCodium", "Cursor", "devenv",
+        "WindowsTerminal", "OpenConsole", "conhost", "wt",
+        "pwsh", "powershell", "cmd", "bash", "wezterm-gui", "alacritty"
+    };
+
     // ---- capture the owning window (called from the --hook process) ----------
 
     /// <summary>
-    /// Walk up the parent-process chain from the current process to the first
-    /// ancestor that owns a visible top-level window (VS Code, Windows Terminal,
-    /// a console host, …). Falls back to the attached console window.
+    /// Determine the top-level window that owns this session. Prefers the
+    /// attached console window (cheap, exact); otherwise walks up the
+    /// parent-process chain to the first ancestor with a visible main window
+    /// (VS Code, Windows Terminal, …).
     /// </summary>
     public static void CaptureOwnerWindow(out long handle, out string title, out string processName)
     {
@@ -25,22 +38,46 @@ public static class WindowInput
         title = "";
         processName = "";
 
+        // 1. A real (visible) console window is the exact owner — no process scan needed.
+        IntPtr console = GetConsoleWindow();
+        if (console != IntPtr.Zero && IsWindowVisible(console))
+        {
+            handle = console.ToInt64();
+            title = GetTitle(console);
+            processName = ProcessNameForWindow(console);
+            return;
+        }
+
+        // 2. Otherwise walk ancestors. Uses a direct parent-PID query per hop
+        //    (a few cheap calls) rather than snapshotting every process.
         try
         {
-            Dictionary<uint, uint> parents = BuildParentMap();
             uint pid = (uint)Environment.ProcessId;
+            DateTime childStart = SafeStartTime(Process.GetCurrentProcess());
 
-            for (int depth = 0; depth < 16 && pid != 0; depth++)
+            for (int depth = 0; depth < 16; depth++)
             {
-                if (!parents.TryGetValue(pid, out uint ppid))
-                    break;
-                pid = ppid;
-                if (pid == 0)
+                uint parent = GetParentProcessId(pid);
+                if (parent == 0 || parent == pid)
                     break;
 
+                Process p;
                 try
                 {
-                    using Process p = Process.GetProcessById((int)pid);
+                    p = Process.GetProcessById((int)parent);
+                }
+                catch
+                {
+                    break; // parent already exited
+                }
+
+                using (p)
+                {
+                    // Guard against PID reuse: a real parent started before its child.
+                    DateTime parentStart = SafeStartTime(p);
+                    if (parentStart > childStart)
+                        break;
+
                     IntPtr h = p.MainWindowHandle;
                     if (h != IntPtr.Zero && IsWindowVisible(h))
                     {
@@ -49,50 +86,46 @@ public static class WindowInput
                         processName = p.ProcessName;
                         return;
                     }
-                }
-                catch
-                {
-                    // process may have exited between snapshot and lookup
+
+                    pid = parent;
+                    childStart = parentStart;
                 }
             }
         }
         catch
         {
-            // fall through to the console window
-        }
-
-        IntPtr console = GetConsoleWindow();
-        if (console != IntPtr.Zero)
-        {
-            handle = console.ToInt64();
-            title = GetTitle(console);
+            // best effort — the responder can still fall back to a title match
         }
     }
 
-    // ---- deliver a reply (called from the responder window, UI thread) -------
+    // ---- deliver a reply -----------------------------------------------------
 
     /// <summary>
-    /// Focus the target window and paste + send <paramref name="text"/> (already
-    /// on the clipboard). Returns false if no suitable window could be focused.
+    /// Focus the session's window and paste + send the text already on the
+    /// clipboard. Runs off the calling (UI) thread. Returns false — without
+    /// typing anything — when no unambiguous window is found or focus cannot be
+    /// taken, so the caller can keep the pending item and let the user paste.
     /// </summary>
-    public static bool SendReply(long storedHandle, string storedTitle, string projectName)
-    {
-        IntPtr target = ResolveWindow(storedHandle, storedTitle, projectName);
-        if (target == IntPtr.Zero)
-            return false;
+    public static Task<bool> SendReplyAsync(long storedHandle, string storedTitle, string projectName)
+        => Task.Run(() =>
+        {
+            IntPtr target = ResolveWindow(storedHandle, storedTitle, projectName);
+            if (target == IntPtr.Zero)
+                return false;
 
-        AllowSetForegroundWindow(ASFW_ANY);
-        if (IsIconic(target))
-            ShowWindow(target, SW_RESTORE);
-        SetForegroundWindow(target);
+            if (!ForceForeground(target))
+                return false; // never type blind — it could hit the wrong window
 
-        // Give the target a moment to actually receive focus, then paste + enter.
-        Thread.Sleep(140);
-        SendCtrlV();
-        Thread.Sleep(40);
-        SendEnter();
-        return true;
-    }
+            SendCtrlV();
+            Thread.Sleep(60);
+
+            // Re-check: a dialog or another app may have stolen focus mid-paste.
+            if (!IsForeground(target))
+                return false;
+
+            SendEnter();
+            return true;
+        });
 
     private static IntPtr ResolveWindow(long storedHandle, string storedTitle, string projectName)
     {
@@ -100,66 +133,152 @@ public static class WindowInput
         if (storedHandle != 0 && IsWindow(h) && IsWindowVisible(h))
             return h;
 
-        // The stored window is gone — find one whose title mentions the project.
-        if (!string.IsNullOrWhiteSpace(projectName))
-        {
-            IntPtr byProject = FindWindowByTitleContains(projectName);
-            if (byProject != IntPtr.Zero)
-                return byProject;
-        }
+        // The captured window is gone. Fall back to a title match, but only
+        // against plausible terminal/editor windows, and only when the match is
+        // unambiguous — pasting into an unrelated window would be worse than
+        // failing.
+        IntPtr byProject = FindUniqueHostWindow(projectName);
+        if (byProject != IntPtr.Zero)
+            return byProject;
 
-        if (!string.IsNullOrWhiteSpace(storedTitle))
-        {
-            IntPtr byTitle = FindWindowByTitleContains(storedTitle);
-            if (byTitle != IntPtr.Zero)
-                return byTitle;
-        }
-
-        return IntPtr.Zero;
+        return FindUniqueHostWindow(storedTitle);
     }
 
-    private static IntPtr FindWindowByTitleContains(string needle)
+    /// <summary>
+    /// Find the single visible window of a known terminal/editor process whose
+    /// title contains <paramref name="needle"/>. Returns zero if there is no
+    /// match or more than one (ambiguous).
+    /// </summary>
+    private static IntPtr FindUniqueHostWindow(string needle)
     {
-        IntPtr found = IntPtr.Zero;
+        if (string.IsNullOrWhiteSpace(needle) || needle.Length < 2)
+            return IntPtr.Zero;
+
+        var matches = new List<IntPtr>();
         EnumWindows((h, _) =>
         {
             if (!IsWindowVisible(h))
                 return true;
+
             string t = GetTitle(h);
-            if (t.Length > 0 && t.Contains(needle, StringComparison.OrdinalIgnoreCase))
+            if (t.Length == 0 || !t.Contains(needle, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (HostProcesses.Contains(ProcessNameForWindow(h)))
             {
-                found = h;
-                return false; // stop
+                matches.Add(h);
+                if (matches.Count > 1)
+                    return false; // ambiguous — stop early
             }
             return true;
         }, IntPtr.Zero);
-        return found;
+
+        return matches.Count == 1 ? matches[0] : IntPtr.Zero;
     }
 
-    // ---- helpers -------------------------------------------------------------
-
-    private static Dictionary<uint, uint> BuildParentMap()
+    /// <summary>
+    /// Bring <paramref name="target"/> to the foreground and confirm it got
+    /// there. Windows' foreground lock silently ignores SetForegroundWindow from
+    /// a background process, so the result must be verified rather than assumed.
+    /// </summary>
+    private static bool ForceForeground(IntPtr target)
     {
-        var map = new Dictionary<uint, uint>();
-        IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snapshot == INVALID_HANDLE_VALUE)
-            return map;
+        if (IsIconic(target))
+            ShowWindow(target, SW_RESTORE);
+
+        SetForegroundWindow(target);
+        if (WaitForForeground(target))
+            return true;
+
+        // Retry with our input queue attached to the current foreground thread,
+        // which lifts the foreground lock for this call.
+        uint thisThread = GetCurrentThreadId();
+        uint targetThread = GetWindowThreadProcessId(target, out _);
+        IntPtr foreground = GetForegroundWindow();
+        uint foregroundThread = foreground == IntPtr.Zero ? 0 : GetWindowThreadProcessId(foreground, out _);
+
+        bool attachedForeground = foregroundThread != 0 && foregroundThread != thisThread &&
+                                  AttachThreadInput(thisThread, foregroundThread, true);
+        bool attachedTarget = targetThread != 0 && targetThread != thisThread &&
+                              AttachThreadInput(thisThread, targetThread, true);
         try
         {
-            var entry = new PROCESSENTRY32 { dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32>() };
-            if (Process32First(snapshot, ref entry))
-            {
-                do
-                {
-                    map[entry.th32ProcessID] = entry.th32ParentProcessID;
-                } while (Process32Next(snapshot, ref entry));
-            }
+            BringWindowToTop(target);
+            SetForegroundWindow(target);
+            return WaitForForeground(target);
         }
         finally
         {
-            CloseHandle(snapshot);
+            if (attachedTarget) AttachThreadInput(thisThread, targetThread, false);
+            if (attachedForeground) AttachThreadInput(thisThread, foregroundThread, false);
         }
-        return map;
+    }
+
+    private static bool WaitForForeground(IntPtr target)
+    {
+        for (int i = 0; i < 20; i++) // up to ~600 ms
+        {
+            if (IsForeground(target))
+                return true;
+            Thread.Sleep(30);
+        }
+        return false;
+    }
+
+    private static bool IsForeground(IntPtr target) => GetForegroundWindow() == target;
+
+    // ---- helpers -------------------------------------------------------------
+
+    private static DateTime SafeStartTime(Process p)
+    {
+        try
+        {
+            return p.StartTime;
+        }
+        catch
+        {
+            return DateTime.MinValue;
+        }
+    }
+
+    private static uint GetParentProcessId(uint pid)
+    {
+        IntPtr handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (handle == IntPtr.Zero)
+            return 0;
+        try
+        {
+            var info = new PROCESS_BASIC_INFORMATION();
+            int status = NtQueryInformationProcess(handle, ProcessBasicInformation,
+                ref info, Marshal.SizeOf<PROCESS_BASIC_INFORMATION>(), out _);
+            if (status != 0)
+                return 0;
+            return (uint)info.InheritedFromUniqueProcessId.ToInt64();
+        }
+        catch
+        {
+            return 0;
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    private static string ProcessNameForWindow(IntPtr hwnd)
+    {
+        try
+        {
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            if (pid == 0)
+                return "";
+            using Process p = Process.GetProcessById((int)pid);
+            return p.ProcessName;
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static string GetTitle(IntPtr hwnd)
@@ -188,44 +307,34 @@ public static class WindowInput
 
     // ---- P/Invoke ------------------------------------------------------------
 
-    private const uint TH32CS_SNAPPROCESS = 0x00000002;
-    private static readonly IntPtr INVALID_HANDLE_VALUE = new(-1);
     private const int SW_RESTORE = 9;
-    private const uint ASFW_ANY = 0xFFFFFFFF;
+    private const int ProcessBasicInformation = 0;
+    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
     private const byte VK_CONTROL = 0x11;
     private const byte VK_V = 0x56;
     private const byte VK_RETURN = 0x0D;
     private const uint KEYEVENTF_KEYUP = 0x0002;
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct PROCESSENTRY32
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PROCESS_BASIC_INFORMATION
     {
-        public uint dwSize;
-        public uint cntUsage;
-        public uint th32ProcessID;
-        public IntPtr th32DefaultHeapID;
-        public uint th32ModuleID;
-        public uint cntThreads;
-        public uint th32ParentProcessID;
-        public int pcPriClassBase;
-        public uint dwFlags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string szExeFile;
+        public IntPtr ExitStatus;
+        public IntPtr PebBaseAddress;
+        public IntPtr AffinityMask;
+        public IntPtr BasePriority;
+        public UIntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
     }
 
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass,
+        ref PROCESS_BASIC_INFORMATION processInformation, int processInformationLength, out int returnLength);
+
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
-
-    [DllImport("kernel32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
-
-    [DllImport("kernel32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+    private static extern IntPtr OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -233,6 +342,9 @@ public static class WindowInput
 
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetConsoleWindow();
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -255,8 +367,18 @@ public static class WindowInput
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool AllowSetForegroundWindow(uint dwProcessId);
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

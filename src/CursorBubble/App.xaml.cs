@@ -26,6 +26,9 @@ public partial class App : Application
     private ResponderWindow? _responder;
     private FileSystemWatcher? _inboxWatcher;
 
+    /// <summary>"sessionId|timestamp" of events already surfaced, to avoid duplicate toasts.</summary>
+    private readonly HashSet<string> _notifiedEvents = new();
+
     private AppConfig _config = new();
 
     protected override void OnStartup(StartupEventArgs e)
@@ -113,7 +116,10 @@ public partial class App : Application
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
                 EnableRaisingEvents = true
             };
-            _inboxWatcher.Created += (_, _) => Dispatcher.InvokeAsync(NotifyInboxChanged);
+            // A session's file is overwritten when its state changes (e.g. waiting
+            // -> finished), which raises Changed rather than Created — watch both.
+            _inboxWatcher.Created += (_, ev) => OnInboxFileEvent(ev.FullPath);
+            _inboxWatcher.Changed += (_, ev) => OnInboxFileEvent(ev.FullPath);
         }
         catch
         {
@@ -121,15 +127,33 @@ public partial class App : Application
         }
     }
 
-    private void NotifyInboxChanged()
+    /// <summary>
+    /// Runs on a watcher thread: read the file that actually changed (with a
+    /// short retry, since the write may not be flushed yet) and notify once per
+    /// distinct session event.
+    /// </summary>
+    private void OnInboxFileEvent(string path)
     {
-        var latest = InboxStore.LoadAll().FirstOrDefault();
-        if (latest is null)
+        InboxRecord? record = InboxStore.TryLoad(path);
+        if (record is null)
             return;
 
-        string what = latest.State == SessionState.Waiting ? "wacht op je" : "is klaar";
-        string project = string.IsNullOrWhiteSpace(latest.ProjectName) ? "een sessie" : latest.ProjectName;
-        _tray?.ShowInfo("Claude Code", $"{project} {what}.");
+        string key = record.SessionId + "|" + record.Timestamp;
+        lock (_notifiedEvents)
+        {
+            if (!_notifiedEvents.Add(key))
+                return; // Created + Changed can both fire for one write
+            if (_notifiedEvents.Count > 200)
+                _notifiedEvents.Clear();
+        }
+
+        Dispatcher.InvokeAsync(() =>
+        {
+            string what = record.State == SessionState.Waiting ? "wacht op je" : "is klaar";
+            string project = string.IsNullOrWhiteSpace(record.ProjectName) ? "een sessie" : record.ProjectName;
+            _tray?.ShowInfo("Claude Code", $"{project} {what}.");
+            _responder?.ReloadInbox();
+        });
     }
 
     private void OpenSettings()

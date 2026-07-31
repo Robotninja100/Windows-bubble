@@ -91,9 +91,14 @@ kun je ze vanuit de bubbel beantwoorden.
 - Antwoorden terugsturen wordt door Claude Code **niet officieel ondersteund**;
   CursorBubble simuleert toetsaanslagen in het bijbehorende venster. Het juiste
   venster wordt bepaald via het ouder-proces van de sessie (met terugval op de
-  projectmap-naam in de venstertitel). Een korte focuswissel is zichtbaar, en de
-  match is heuristisch — lukt het niet, dan staat je antwoord op het klembord om
-  zelf te plakken.
+  projectmap-naam in de venstertitel, alleen bij een **eenduidige** match op een
+  terminal-/editorvenster).
+- Er wordt **nooit blind getypt**: pas als het doelvenster daadwerkelijk op de
+  voorgrond staat, gaan Ctrl+V en Enter eruit. Lukt dat niet, dan blijft de
+  sessie openstaan en staat je antwoord op het klembord om zelf te plakken —
+  zo belandt een Enter nooit in een verkeerd venster.
+- Je vorige klembord-inhoud wordt na een geslaagde verzending teruggezet.
+- Een korte focuswissel naar het doelvenster is zichtbaar.
 - Gestructureerde keuzevragen komen als tekst binnen; je typt je keuze.
 
 ## Bouwen en draaien

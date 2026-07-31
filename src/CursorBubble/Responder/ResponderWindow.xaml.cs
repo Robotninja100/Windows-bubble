@@ -83,7 +83,7 @@ public partial class ResponderWindow : Window
         ReloadInbox();
     }
 
-    private void SendBtn_Click(object sender, RoutedEventArgs e)
+    private async void SendBtn_Click(object sender, RoutedEventArgs e)
     {
         InboxRecord? rec = Selected;
         if (rec is null) return;
@@ -95,6 +95,9 @@ public partial class ResponderWindow : Window
             return;
         }
 
+        // Remember what the user had on the clipboard so we can put it back.
+        string? previousClipboard = TryGetClipboardText();
+
         try
         {
             Clipboard.SetText(text);
@@ -105,29 +108,79 @@ public partial class ResponderWindow : Window
             return;
         }
 
-        // Step aside so focus can move to the terminal, then paste + enter.
-        Hide();
-        bool ok = WindowInput.SendReply(rec.WindowHandle, rec.WindowTitle, rec.ProjectName);
+        SendBtn.IsEnabled = false;
+        StatusText.Text = "Bezig met versturen…";
 
-        if (ok)
+        // Step aside so focus can move to the terminal. Awaiting keeps the UI
+        // responsive while the (slow) focus + paste happens on a worker thread.
+        Hide();
+        await Task.Delay(80);
+
+        bool delivered;
+        try
         {
+            delivered = await WindowInput.SendReplyAsync(rec.WindowHandle, rec.WindowTitle, rec.ProjectName);
+        }
+        catch
+        {
+            delivered = false;
+        }
+        finally
+        {
+            SendBtn.IsEnabled = true;
+        }
+
+        if (delivered)
+        {
+            RestoreClipboard(previousClipboard);
             InboxStore.Remove(rec.SessionId);
             ReloadInbox();
-            if (InboxStore.UnansweredCount() == 0)
+
+            if (SessionsList.Items.Count == 0)
             {
                 Close();
+                return;
             }
-            else
-            {
-                Show();
-                Activate();
-            }
+
+            Show();
+            Activate();
+            StatusText.Text = "Antwoord verstuurd.";
         }
         else
         {
+            // Nothing was typed — keep the session pending and leave the reply on
+            // the clipboard so the user can paste it themselves.
             Show();
             Activate();
-            StatusText.Text = "Kon het bijbehorende venster niet vinden. Je antwoord staat op het klembord — plak het zelf met Ctrl+V in de sessie.";
+            StatusText.Text = "Kon het venster van deze sessie niet activeren; er is niets getypt. " +
+                              "Je antwoord staat op het klembord — plak het zelf met Ctrl+V in de sessie.";
+        }
+    }
+
+    private static string? TryGetClipboardText()
+    {
+        try
+        {
+            return Clipboard.ContainsText() ? Clipboard.GetText() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void RestoreClipboard(string? previous)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(previous))
+                Clipboard.Clear();
+            else
+                Clipboard.SetText(previous);
+        }
+        catch
+        {
+            // leaving the reply on the clipboard is an acceptable fallback
         }
     }
 }
