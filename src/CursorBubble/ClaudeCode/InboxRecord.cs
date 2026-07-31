@@ -67,6 +67,22 @@ public sealed class InboxRecord
         }
     }
 
+    /// <summary>
+    /// The whole list item as one sentence, for <c>AutomationProperties.Name</c>.
+    /// The item template stacks four separate TextBlocks, which a screen reader
+    /// otherwise reads as run-together fragments with no punctuation between them.
+    /// </summary>
+    [JsonIgnore]
+    public string AccessibleSummary
+    {
+        get
+        {
+            string when = WhenLocal;
+            string time = when.Length == 0 ? "" : $", {when}";
+            return $"{DisplayProject}. {StateText}{time}. {Snippet}";
+        }
+    }
+
     [JsonIgnore]
     public string WhenLocal
     {

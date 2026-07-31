@@ -122,4 +122,31 @@ public class InboxRecordTests
         Assert.Equal("", new InboxRecord { Timestamp = "not a date" }.WhenLocal);
         Assert.Equal("", new InboxRecord { Timestamp = "" }.WhenLocal);
     }
+
+    [Fact]
+    public void The_accessible_summary_is_one_punctuated_sentence()
+    {
+        var record = new InboxRecord
+        {
+            ProjectName = "windows-bubble",
+            State = SessionState.Waiting,
+            Message = "Which branch\r\nshould I use?",
+            Timestamp = new DateTime(2026, 7, 31, 14, 5, 0, DateTimeKind.Utc).ToString("o")
+        };
+
+        string summary = record.AccessibleSummary;
+
+        Assert.StartsWith("windows-bubble. Waiting for you, ", summary, StringComparison.Ordinal);
+        Assert.EndsWith(". Which branch should I use?", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', summary);
+    }
+
+    [Fact]
+    public void The_accessible_summary_drops_the_time_when_there_is_none()
+    {
+        var record = new InboxRecord { ProjectName = "demo", Message = "done" };
+
+        // No stray comma before the full stop when the timestamp is unparseable.
+        Assert.Equal("demo. Finished. done", record.AccessibleSummary);
+    }
 }

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using CursorBubble.ClaudeCode;
@@ -74,6 +75,27 @@ public partial class ResponderWindow : Window
     }
 
     private void RefreshBtn_Click(object sender, RoutedEventArgs e) => ReloadInbox();
+
+    /// <summary>
+    /// Ctrl+Enter sends. The reply box takes plain Enter as a newline, so the Send
+    /// button cannot be <c>IsDefault</c> — this is the keyboard path in its place.
+    /// </summary>
+    private void ReplyBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+
+        e.Handled = true;
+        if (SendBtn.IsEnabled) SendBtn_Click(SendBtn, new RoutedEventArgs());
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F5) return;
+
+        e.Handled = true;
+        ReloadInbox();
+    }
 
     private void DismissBtn_Click(object sender, RoutedEventArgs e)
     {
