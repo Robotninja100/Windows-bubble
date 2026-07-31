@@ -152,6 +152,26 @@
                         <TextBlock Text="Naam" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="LabelBox" TextChanged="Detail_Changed" />
 
+                        <TextBlock Text="Icoon" Style="{StaticResource FieldLabel}" />
+                        <DockPanel>
+                            <TextBlock x:Name="IconPreview" DockPanel.Dock="Right"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="22" Width="30" TextAlignment="Center"
+                                       Foreground="#20242C" VerticalAlignment="Center" />
+                            <ComboBox x:Name="IconGlyphBox" SelectionChanged="IconGlyphBox_Changed">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Glyph}"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                       FontSize="16" Width="24" TextAlignment="Center" />
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </DockPanel>
+
                         <TextBlock Text="Actie" Style="{StaticResource FieldLabel}" />
                         <ComboBox x:Name="ActionBox" SelectionChanged="ActionBox_Changed" />
 

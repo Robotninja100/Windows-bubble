@@ -19,6 +19,9 @@ namespace CursorBubble.Overlay;
 /// </summary>
 public sealed class RadialMenuControl : Canvas
 {
+    /// <summary>Windows system icon font, with a fallback for older Windows 10.</summary>
+    internal static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
+
     private readonly List<Path> _segments = new();
     private StyleConfig _style = new();
     private int _count;
@@ -196,6 +199,20 @@ public sealed class RadialMenuControl : Canvas
                 Height = 28,
                 Margin = new Thickness(0, 0, 0, 4),
                 HorizontalAlignment = HorizontalAlignment.Center
+            });
+        }
+        else if (!string.IsNullOrWhiteSpace(segment.Glyph))
+        {
+            // Built-in vector icon from the Windows system icon font.
+            panel.Children.Add(new TextBlock
+            {
+                Text = segment.Glyph,
+                FontFamily = IconFont,
+                FontSize = 26,
+                Foreground = _labelBrush,
+                Margin = new Thickness(0, 0, 0, 4),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Effect = new DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Color = Colors.White, Opacity = 0.6 }
             });
         }
 

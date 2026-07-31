@@ -18,6 +18,28 @@ public partial class SettingsWindow : Window
 {
     private sealed record ActionOption(string Display, ActionType Value);
 
+    private sealed record IconOption(string Name, string Glyph);
+
+    // Curated icons from the Segoe Fluent Icons / Segoe MDL2 Assets system font.
+    private static readonly IconOption[] IconOptions =
+    {
+        new("Geen", ""),
+        new("Map", ""),
+        new("Wereld / Browser", ""),
+        new("Instellingen", ""),
+        new("Document", ""),
+        new("Opslaan", ""),
+        new("Mail", ""),
+        new("Agenda", ""),
+        new("Afspelen", ""),
+        new("Camera", ""),
+        new("Foto", ""),
+        new("Muziek", ""),
+        new("Terminal", ""),
+        new("Rekenmachine", ""),
+        new("Home", ""),
+    };
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() }
@@ -46,6 +68,8 @@ public partial class SettingsWindow : Window
         };
         ActionBox.DisplayMemberPath = nameof(ActionOption.Display);
         ActionBox.SelectedValuePath = nameof(ActionOption.Value);
+
+        IconGlyphBox.ItemsSource = IconOptions;
 
         SegmentsList.ItemsSource = _working.Segments;
 
@@ -205,6 +229,10 @@ public partial class SettingsWindow : Window
         IconBox.Text = seg?.IconPath ?? "";
         ActionBox.SelectedValue = seg?.Action ?? ActionType.OpenPath;
 
+        string glyph = seg?.Glyph ?? "";
+        IconGlyphBox.SelectedItem = Array.Find(IconOptions, o => o.Glyph == glyph) ?? IconOptions[0];
+        IconPreview.Text = glyph;
+
         _suspend = false;
     }
 
@@ -230,6 +258,19 @@ public partial class SettingsWindow : Window
         if (seg is null) return;
         if (ActionBox.SelectedValue is ActionType t)
             seg.Action = t;
+    }
+
+    private void IconGlyphBox_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suspend) return;
+        SegmentConfig? seg = Selected;
+        if (seg is null) return;
+        if (IconGlyphBox.SelectedItem is IconOption opt)
+        {
+            seg.Glyph = string.IsNullOrEmpty(opt.Glyph) ? null : opt.Glyph;
+            IconPreview.Text = opt.Glyph;
+            RebuildPreview();
+        }
     }
 
     private void AddBtn_Click(object sender, RoutedEventArgs e)

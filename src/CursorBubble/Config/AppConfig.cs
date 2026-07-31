@@ -10,7 +10,14 @@ public sealed class SegmentConfig
     /// <summary>Text shown on the segment.</summary>
     public string Label { get; set; } = "New";
 
-    /// <summary>Optional path to an icon image (png/ico) shown above the label.</summary>
+    /// <summary>
+    /// Optional built-in icon: a single glyph from the Segoe Fluent Icons /
+    /// Segoe MDL2 Assets system font (e.g. "" for a folder). Empty = none.
+    /// Ignored when <see cref="IconPath"/> points at an existing image.
+    /// </summary>
+    public string? Glyph { get; set; }
+
+    /// <summary>Optional path to a custom icon image (png/ico); takes priority over <see cref="Glyph"/>.</summary>
     public string? IconPath { get; set; }
 
     public ActionType Action { get; set; } = ActionType.OpenPath;
@@ -83,29 +90,34 @@ public sealed class AppConfig
         var cfg = new AppConfig();
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Documenten\nopenen", Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
+            Label = "Documenten\nopenen", Glyph = "",
+            Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Webbrowser\nstarten", Action = ActionType.OpenPath, Target = "https://www.google.com"
+            Label = "Webbrowser\nstarten", Glyph = "",
+            Action = ActionType.OpenPath, Target = "https://www.google.com"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Rekenmachine", Action = ActionType.LaunchProgram, Target = "calc.exe"
+            Label = "Rekenmachine", Glyph = "",
+            Action = ActionType.LaunchProgram, Target = "calc.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Draai Back-up\nScript",
+            Label = "Draai Back-up\nScript", Glyph = "",
             Action = ActionType.RunScript,
             Target = "powershell -NoProfile -Command \"Write-Host 'Vervang dit door je eigen back-up script'\""
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "PowerShell\nopenen", Action = ActionType.LaunchProgram, Target = "powershell.exe"
+            Label = "PowerShell\nopenen", Glyph = "",
+            Action = ActionType.LaunchProgram, Target = "powershell.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Instellingen\nopenen", Action = ActionType.OpenPath, Target = "ms-settings:"
+            Label = "Instellingen\nopenen", Glyph = "",
+            Action = ActionType.OpenPath, Target = "ms-settings:"
         });
         return cfg;
     }
