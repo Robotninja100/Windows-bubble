@@ -126,9 +126,16 @@ public class ConfigStoreTests
         original.MenuHotkey = "Ctrl+Shift+F9";
 
         string json = ConfigStore.Serialize(original);
-        Assert.Contains("\"Ctrl+Shift+F9\"", json, StringComparison.Ordinal);
+
+        // Not asserted as a literal substring: System.Text.Json's default encoder
+        // escapes '+', so what lands in the file is "Ctrl+Shift+F9".
+        // Still a plain string anyone can hand-edit, and a hand-written
+        // "Ctrl+Shift+F9" reads back identically — which is the part that matters.
+        Assert.Contains("MenuHotkey", json, StringComparison.Ordinal);
 
         AppConfig? loaded = ConfigStore.Deserialize(json);
         Assert.Equal("Ctrl+Shift+F9", loaded!.MenuHotkey);
+        Assert.Equal("Ctrl+Shift+F9", ConfigStore.Deserialize(
+            """{ "MenuHotkey": "Ctrl+Shift+F9" }""")!.MenuHotkey);
     }
 }

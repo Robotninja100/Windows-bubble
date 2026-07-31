@@ -5,6 +5,7 @@ using CursorBubble.Actions;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
 using CursorBubble.Diagnostics;
+using CursorBubble.Input;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
 using CursorBubble.Responder;
@@ -24,6 +25,7 @@ public partial class App : Application
 {
     private Mutex? _singleInstance;
     private MouseHook? _hook;
+    private HotkeyManager? _hotkeys;
     private RadialMenuWindow? _overlay;
     private TrayIcon? _tray;
     private SettingsWindow? _settings;
@@ -90,7 +92,66 @@ public partial class App : Application
             _tray.ShowError("Could not enable the mouse gesture: " + ex.Message);
         }
 
+        InstallMenuHotkey();
+
         StartInboxWatcher();
+    }
+
+    /// <summary>
+    /// Register the configured global hotkey. Never throws: without it the mouse
+    /// gesture still works, so a taken combination is a warning, not a crash.
+    /// </summary>
+    private void InstallMenuHotkey()
+    {
+        HotkeySpec spec = HotkeySpec.ParseOrDefault(_config.MenuHotkey, HotkeySpec.Default);
+
+        try
+        {
+            _hotkeys = new HotkeyManager();
+            _hotkeys.Pressed += OnMenuHotkey;
+
+            if (!_hotkeys.TryRebind(spec, out string error))
+            {
+                Log.Warn("Could not register the menu hotkey: " + error);
+                _tray?.ShowError(error + " Change it under Settings → General.");
+            }
+            else
+            {
+                Log.Info($"Menu hotkey registered: {spec}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to set up the menu hotkey.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Rebind after the user edited the hotkey in settings. Reports a conflict
+    /// through the tray, since the settings window has already closed by then.
+    /// </summary>
+    private void ApplyMenuHotkey()
+    {
+        if (_hotkeys is null) return;
+
+        HotkeySpec spec = HotkeySpec.ParseOrDefault(_config.MenuHotkey, HotkeySpec.Default);
+        if (_hotkeys.Current == spec) return;
+
+        if (_hotkeys.TryRebind(spec, out string error))
+            Log.Info($"Menu hotkey rebound to {spec}.");
+        else
+            _tray?.ShowError(error + " The previous hotkey is still active.");
+    }
+
+    /// <summary>
+    /// The global hotkey fired. Deliberately synchronous: this runs inside the
+    /// WM_HOTKEY turn, and that is the only window in which SetForegroundWindow
+    /// is allowed to hand focus to the overlay.
+    /// </summary>
+    private void OnMenuHotkey()
+    {
+        // Wired up in a later commit, once the overlay can accept keyboard input.
+        Log.Info("Menu hotkey pressed.");
     }
 
     /// <summary>
@@ -236,6 +297,7 @@ public partial class App : Application
         _config = updated;
         ConfigStore.Save(_config);
         _overlay?.Rebuild(_config);
+        ApplyMenuHotkey();
         AutostartManager.Apply(_config.StartWithWindows);
         _tray?.SetAutostartChecked(_config.StartWithWindows);
     }
@@ -251,6 +313,7 @@ public partial class App : Application
     {
         Log.Info("CursorBubble exiting.");
         _inboxWatcher?.Dispose();
+        _hotkeys?.Dispose();
         _hook?.Dispose();
         _tray?.Dispose();
         _overlay?.Close();
