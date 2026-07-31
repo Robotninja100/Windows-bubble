@@ -1,9 +1,11 @@
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
+using CursorBubble.Diagnostics;
 using CursorBubble.Native;
 
 namespace CursorBubble.Overlay;
@@ -32,6 +34,11 @@ public partial class RadialMenuWindow : Window
     private double _centerY;
     private int _currentIndex = -1;
 
+    private MenuInputMode _mode = MenuInputMode.Mouse;
+
+    /// <summary>Window to hand focus back to when closing. Keyboard mode only; zero otherwise.</summary>
+    private IntPtr _restoreTarget;
+
     public RadialMenuWindow(AppConfig config)
     {
         InitializeComponent();
@@ -51,6 +58,18 @@ public partial class RadialMenuWindow : Window
     /// <summary>Currently highlighted segment index, or -1 for none.</summary>
     public int CurrentIndex => _currentIndex;
 
+    /// <summary>True while the bubble is on screen.</summary>
+    public bool IsOpen => Visibility == Visibility.Visible;
+
+    /// <summary>What is driving the opening currently on screen.</summary>
+    public MenuInputMode InputMode => _mode;
+
+    /// <summary>
+    /// The user chose a segment from the keyboard. The mouse path has its own
+    /// commit signal (the button release), so this fires for keyboard mode only.
+    /// </summary>
+    public event Action? CommitRequested;
+
     /// <summary>Rebuild the menu after the configuration changed.</summary>
     public void Rebuild(AppConfig config)
     {
@@ -63,13 +82,45 @@ public partial class RadialMenuWindow : Window
     {
         base.OnSourceInitialized(e);
 
-        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        ApplyInputMode(_mode);
+    }
 
-        // Tool window, never activates, click-through: it must not disturb the
-        // app underneath while the gesture is in progress.
+    /// <summary>
+    /// Set the extended window styles for the given mode.
+    ///
+    /// Mouse mode is exactly what this window has always been: a tool window
+    /// that never activates and is click-through, so it cannot disturb the app
+    /// underneath while a mouse button is held.
+    ///
+    /// Keyboard mode keeps WS_EX_TOOLWINDOW — it stays out of alt-tab and the
+    /// taskbar while remaining fully visible to UI Automation — and clears the
+    /// other two, because a window that refuses activation cannot read the
+    /// keyboard and a click-through window cannot be clicked away.
+    /// </summary>
+    private void ApplyInputMode(MenuInputMode mode)
+    {
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+            return; // applied from OnSourceInitialized once the handle exists
+
         int ex = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-        ex |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TRANSPARENT;
+        ex |= NativeMethods.WS_EX_TOOLWINDOW;
+
+        if (mode == MenuInputMode.Keyboard)
+            ex &= ~(NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TRANSPARENT);
+        else
+            ex |= NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TRANSPARENT;
+
         _ = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, ex);
+
+        // Extended-style changes are not guaranteed to take effect until the
+        // frame is recalculated.
+        NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
+            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE |
+            NativeMethods.SWP_FRAMECHANGED);
+
+        Focusable = mode == MenuInputMode.Keyboard;
     }
 
     /// <summary>(Re)apply the desktop blur, clipped to the glass segments.</summary>
@@ -85,9 +136,44 @@ public partial class RadialMenuWindow : Window
             AcrylicHelper.Disable(hwnd);
     }
 
-    /// <summary>Show the bubble centred on the given (physical pixel) cursor point.</summary>
-    public void ShowAt(ScreenPoint cursor)
+    /// <summary>
+    /// Show the bubble centred on the given (physical pixel) cursor point, driven
+    /// by the mouse. This overload exists so the gesture path is byte-for-byte
+    /// the behaviour it has always had.
+    /// </summary>
+    public void ShowAt(ScreenPoint cursor) => ShowAt(cursor, MenuInputMode.Mouse, IntPtr.Zero);
+
+    /// <summary>
+    /// Show the bubble centred on the work area of the monitor the pointer is on.
+    /// Used by the hotkey: a keyboard user has no reason to know or care where
+    /// the mouse pointer happens to be sitting.
+    /// </summary>
+    public void ShowCentred(MenuInputMode mode, IntPtr restoreTarget)
     {
+        if (!NativeMethods.GetCursorPos(out NativeMethods.POINT pointer))
+            pointer = new NativeMethods.POINT { x = 0, y = 0 };
+
+        (_, NativeMethods.RECT work) = GetMonitorMetrics(new ScreenPoint(pointer.x, pointer.y));
+
+        var centre = new ScreenPoint(
+            (work.left + work.right) / 2,
+            (work.top + work.bottom) / 2);
+
+        ShowAt(centre, mode, restoreTarget);
+    }
+
+    /// <summary>
+    /// Show the bubble centred on the given (physical pixel) point.
+    /// </summary>
+    /// <param name="restoreTarget">
+    /// Window to hand focus back to on close. Honoured in keyboard mode only —
+    /// the mouse path never takes focus, so it has nothing to give back.
+    /// </param>
+    public void ShowAt(ScreenPoint cursor, MenuInputMode mode, IntPtr restoreTarget)
+    {
+        _mode = mode;
+        _restoreTarget = mode == MenuInputMode.Keyboard ? restoreTarget : IntPtr.Zero;
+
         // Refresh the Claude Code inbox badge with the current pending count.
         int newCount = InboxStore.UnansweredCount();
         if (newCount != _menu.InboxCount)
@@ -128,6 +214,10 @@ public partial class RadialMenuWindow : Window
             Visibility = Visibility.Visible;
         }
 
+        // After the handle exists and before the real move, so the frame is
+        // already recalculated when the window lands in its final place.
+        ApplyInputMode(mode);
+
         int sizePx = (int)Math.Ceiling(diameterPx);
         IntPtr hwnd = new WindowInteropHelper(this).Handle;
         NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOPMOST,
@@ -153,9 +243,148 @@ public partial class RadialMenuWindow : Window
             ResetOpenAnimation();
         }
 
-        _currentIndex = -1;
-        _menu.SetHighlight(-1);
-        UpdateCursor(cursor);
+        // Deliberately nothing selected: with the first segment pre-selected, a
+        // reflexive Enter would run an arbitrary script.
+        SetSelection(-1);
+
+        if (mode == MenuInputMode.Keyboard)
+            TakeFocus(hwnd);
+        else
+            UpdateCursor(cursor);
+    }
+
+    /// <summary>
+    /// Pull focus to the bubble so it can read the keyboard.
+    ///
+    /// This runs inside the WM_HOTKEY turn on purpose: "the process is
+    /// processing a hotkey event" is one of SetForegroundWindow's documented
+    /// conditions, and it is the only reason a window that was WS_EX_NOACTIVATE
+    /// a moment ago is allowed to come to the front at all.
+    /// </summary>
+    private void TakeFocus(IntPtr hwnd)
+    {
+        Activate();
+        NativeMethods.SetForegroundWindow(hwnd);
+        Focus();
+
+        // If the grant did not hold, the bubble is on screen but deaf. Log it
+        // once so the field diagnosis exists rather than "it just does nothing".
+        if (NativeMethods.GetForegroundWindow() != hwnd)
+            Log.Warn("The bubble did not become the foreground window; keyboard selection will not work.");
+    }
+
+    /// <summary>
+    /// The one place the selection changes, whichever input drove it.
+    /// </summary>
+    private void SetSelection(int index)
+    {
+        if (index < 0 || index >= _config.Segments.Count)
+            index = -1;
+
+        _currentIndex = index;
+        _menu.SetHighlight(index);
+    }
+
+    /// <summary>Move the keyboard selection around the ring; see RadialMath.StepSelection.</summary>
+    private void Step(int direction)
+        => SetSelection(RadialMath.StepSelection(_currentIndex, direction, _config.Segments.Count));
+
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        base.OnPreviewKeyDown(e);
+
+        if (_mode != MenuInputMode.Keyboard || !IsOpen || e.Handled)
+            return;
+
+        switch (e.Key)
+        {
+            // The ring is walked as a list, not as a compass: forwards is the
+            // next segment clockwise regardless of where on screen it sits.
+            case Key.Right:
+            case Key.Down:
+                Step(1);
+                break;
+
+            case Key.Left:
+            case Key.Up:
+                Step(-1);
+                break;
+
+            // Tab is mapped too, so it cannot wander out of a window that is the
+            // only thing on screen and leave the bubble unreachable.
+            case Key.Tab:
+                Step(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1);
+                break;
+
+            case Key.Home:
+                SetSelection(_config.Segments.Count > 0 ? 0 : -1);
+                break;
+
+            case Key.End:
+                SetSelection(_config.Segments.Count - 1);
+                break;
+
+            case Key.Enter:
+            case Key.Space:
+                CommitRequested?.Invoke();
+                break;
+
+            case Key.Escape:
+                CancelMenu();
+                break;
+
+            default:
+                int digit = DigitFor(e.Key);
+                if (digit < 0)
+                    return; // not ours: leave e.Handled alone
+
+                int index = RadialMath.IndexForDigit(digit, _config.Segments.Count);
+                if (index < 0)
+                    return; // names no segment, so do nothing rather than something arbitrary
+
+                SetSelection(index);
+                break;
+        }
+
+        e.Handled = true;
+    }
+
+    /// <summary>The digit a key stands for, from the number row or the keypad; -1 if it is not a digit.</summary>
+    private static int DigitFor(Key key) => key switch
+    {
+        >= Key.D0 and <= Key.D9 => key - Key.D0,
+        >= Key.NumPad0 and <= Key.NumPad9 => key - Key.NumPad0,
+        _ => -1
+    };
+
+    /// <summary>Close without running anything, handing focus back where it came from.</summary>
+    public void CancelMenu() => HideMenu();
+
+    protected override void OnDeactivated(EventArgs e)
+    {
+        base.OnDeactivated(e);
+
+        // Clicking or alt-tabbing elsewhere cancels, the same way releasing in
+        // the dead zone does. Mouse mode never activates, so it never gets here.
+        if (_mode == MenuInputMode.Keyboard && IsOpen)
+            HideMenu();
+    }
+
+    /// <summary>
+    /// Hand focus back to whatever was in front before the bubble opened.
+    ///
+    /// Load-bearing: the actions run against <em>other</em> windows, so an action
+    /// that fires while the bubble still owns the foreground would target the
+    /// wrong thing entirely.
+    /// </summary>
+    private void RestoreForeground()
+    {
+        if (_restoreTarget == IntPtr.Zero)
+            return;
+
+        IntPtr target = _restoreTarget;
+        _restoreTarget = IntPtr.Zero;
+        NativeMethods.SetForegroundWindow(target);
     }
 
     /// <summary>Frost the desktop once the petals have settled at full size.</summary>
@@ -182,8 +411,7 @@ public partial class RadialMenuWindow : Window
     {
         double dxDip = (cursor.X - _centerX) / _scale;
         double dyDip = (cursor.Y - _centerY) / _scale;
-        _currentIndex = _menu.HitTest(dxDip, dyDip);
-        _menu.SetHighlight(_currentIndex);
+        SetSelection(_menu.HitTest(dxDip, dyDip));
     }
 
     /// <summary>Hide the bubble and return the segment that was selected (or null).</summary>
@@ -202,8 +430,13 @@ public partial class RadialMenuWindow : Window
         Visibility = Visibility.Hidden;
         _pendingGlassSizePx = 0;
         _menu.CancelOpenAnimation();
-        _currentIndex = -1;
-        _menu.SetHighlight(-1);
+        SetSelection(-1);
+
+        // Before returning, not afterwards: the caller runs the chosen action
+        // next and it must find the original window in front.
+        RestoreForeground();
+
+        _mode = MenuInputMode.Mouse;
     }
 
     private static (double scale, NativeMethods.RECT work) GetMonitorMetrics(ScreenPoint p)

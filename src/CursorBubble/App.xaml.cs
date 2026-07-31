@@ -69,6 +69,8 @@ public partial class App : Application
         AutostartManager.Apply(_config.StartWithWindows);
 
         _overlay = new RadialMenuWindow(_config);
+        // Keyboard mode has no button release to commit on, so the window tells us.
+        _overlay.CommitRequested += OnCommit;
 
         _tray = new TrayIcon(_config.StartWithWindows);
         _tray.SettingsRequested += OpenSettings;
@@ -150,8 +152,28 @@ public partial class App : Application
     /// </summary>
     private void OnMenuHotkey()
     {
-        // Wired up in a later commit, once the overlay can accept keyboard input.
-        Log.Info("Menu hotkey pressed.");
+        if (_overlay is null) return;
+
+        if (_overlay.IsOpen)
+        {
+            if (_overlay.InputMode == MenuInputMode.Keyboard)
+            {
+                // A second press closes it, so the hotkey is a toggle.
+                _overlay.CancelMenu();
+            }
+            else
+            {
+                // A mouse gesture is in progress; taking it over would leave the
+                // hook waiting for a button release that no longer means anything.
+                Log.Info("Menu hotkey ignored: a mouse gesture is in progress.");
+            }
+            return;
+        }
+
+        // Captured before anything is shown, and handed to the overlay so it can
+        // put this window back in front before the chosen action runs.
+        IntPtr previous = NativeMethods.GetForegroundWindow();
+        _overlay.ShowCentred(MenuInputMode.Keyboard, previous);
     }
 
     /// <summary>
