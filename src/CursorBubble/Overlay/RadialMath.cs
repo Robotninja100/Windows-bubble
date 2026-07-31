@@ -43,6 +43,45 @@ internal static class RadialMath
     }
 
     /// <summary>
+    /// Move the keyboard selection by <paramref name="step"/> places around the
+    /// ring, wrapping at both ends. Returns -1 (cancel) when there is nothing to
+    /// select.
+    ///
+    /// The ring is walked as a <em>list</em>, not as a compass: +1 is the next
+    /// segment clockwise, which is both the order they are drawn in and the order
+    /// they appear in the settings list. Mapping arrow keys geometrically — "Up
+    /// selects the segment above the centre" — inverts its own sense between the
+    /// left and right halves of the ring, stops meaning anything once StartAngle
+    /// rotates the ring, and is unpredictable to someone who cannot see it.
+    ///
+    /// From nothing selected, a step in either direction enters the ring at the
+    /// end it came from: forwards lands on the first segment, backwards on the last.
+    /// </summary>
+    public static int StepSelection(int current, int step, int count)
+    {
+        if (count <= 0) return -1;
+        if (step == 0) return current;
+
+        if (current < 0 || current >= count)
+            return step > 0 ? 0 : count - 1;
+
+        return (int)Mod(current + step, count);
+    }
+
+    /// <summary>
+    /// The segment a number key selects: 1 is the first segment, 9 the ninth.
+    /// Returns -1 when the digit is out of range or names a segment that does not
+    /// exist, so an unlucky keypress does nothing rather than something arbitrary.
+    /// </summary>
+    public static int IndexForDigit(int digit, int count)
+    {
+        if (digit < 1 || digit > 9) return -1;
+
+        int index = digit - 1;
+        return index < count ? index : -1;
+    }
+
+    /// <summary>
     /// The largest corner radius whose fillets still fit in a petal, capped at
     /// <paramref name="wanted"/>.
     ///
