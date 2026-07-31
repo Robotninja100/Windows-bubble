@@ -33,6 +33,7 @@
         </Style>
 
         <Style TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="4,0,0,0" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -42,10 +43,18 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
                                 BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <!-- RecognizesAccessKey defaults to false on a bare
+                                 ContentPresenter, which would render "_Save" with a
+                                 literal underscore instead of a mnemonic. -->
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}" />
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
                             </Trigger>
@@ -59,6 +68,7 @@
         </Style>
 
         <Style TargetType="TextBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="Background" Value="#2A0E1116" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -68,10 +78,24 @@
         </Style>
 
         <Style TargetType="CheckBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
         </Style>
 
+        <!-- These two have no other styling here; the setter exists purely so the
+             keyboard focus ring is visible against the dark chrome. -->
+        <Style TargetType="ComboBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+        <Style TargetType="Slider">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+
         <Style TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -80,6 +104,9 @@
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
                             </Trigger>
@@ -390,11 +417,20 @@
                             <Border x:Name="bd" CornerRadius="6" Background="{StaticResource Accent}"
                                     BorderBrush="#5C9BFF" BorderThickness="1">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="12,6" />
+                                                  Margin="12,6" RecognizesAccessKey="True" />
                             </Border>
                             <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="bd" Property="BorderBrush" Value="#DCE9FF" />
+                                </Trigger>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="bd" Property="Background" Value="#5C9BFF" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#3F7AE0" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.45" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

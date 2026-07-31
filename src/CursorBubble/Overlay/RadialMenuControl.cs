@@ -109,6 +109,13 @@ public sealed class RadialMenuControl : Canvas
     /// <summary>Number of pending Claude Code sessions, shown as a badge on the inbox segment.</summary>
     public int InboxCount { get; set; }
 
+    /// <summary>
+    /// The bubble is drawn geometry, not controls: hide the internals from screen
+    /// readers and let <see cref="RadialMenuWindow"/> announce the selection.
+    /// </summary>
+    protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer()
+        => new RadialMenuAutomationPeer(this);
+
     public void Build(AppConfig config)
     {
         Children.Clear();
