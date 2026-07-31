@@ -22,6 +22,33 @@ inside the app.
 An ordinary right click (without a left click alongside it) still works
 normally: the context menu appears as soon as you release the right button.
 
+### Without a mouse
+
+Press **Ctrl+Alt+Space** and the bubble opens in the middle of the screen,
+ready for the keyboard. The combination can be changed under **Settings →
+General**.
+
+| Key | What it does |
+| --- | --- |
+| `→` `↓` `Tab` | Next shortcut, clockwise |
+| `←` `↑` `Shift+Tab` | Previous shortcut |
+| `1`–`9` | Jump straight to that shortcut |
+| `Home` / `End` | First / last shortcut |
+| `Enter` or `Space` | Run the selected shortcut |
+| `Esc` | Close without running anything |
+| `Ctrl+Alt+Space` again | Also closes it |
+
+The arrow keys walk the ring as a **list**, not as a compass: "next" is always
+the following shortcut clockwise, in the same order they appear in the settings
+list, whichever side of the ring it is on. This stays predictable when the ring
+is rotated with **Start angle**, which a compass mapping would not.
+
+The bubble **opens with nothing selected**, so pressing Enter straight away
+cancels rather than running whatever happened to be first. A screen reader
+announces how many shortcuts there are on opening, then each selection as
+"Open Documents, 2 of 7". When the bubble closes, focus goes back to the window
+you were in before, so the shortcut acts on the right thing.
+
 The app runs in the background with an **icon in the system tray**. From the
 tray menu you open **Settings**, toggle **Start with Windows**, or exit.
 
@@ -29,7 +56,9 @@ tray menu you open **Settings**, toggle **Start with Windows**, or exit.
 
 Right-click (or double-click) the tray icon → **Settings…**:
 
-- **General** — autostart and a short how-to.
+- **General** — autostart, the keyboard shortcut that opens the bubble, and a
+  short how-to. To change the shortcut, click the field and press the
+  combination you want; `Tab` leaves the field without changing it.
 - **Layout** — outer/inner radius, start angle, the gap between segments and how
   rounded their corners are.
 - **Segments** — add, edit, remove and reorder segments. Per segment: name,
@@ -160,6 +189,14 @@ The `.exe` then lives in
   only underneath the glass, while the gaps and the centre stay sharp.
 - **DPI-aware** (Per-Monitor v2); the bubble is placed on the cursor in physical
   pixels.
+- **A global hotkey** via `RegisterHotKey` rather than a keyboard hook. A
+  low-level keyboard hook is a keylogger, and `SetForegroundWindow` is only
+  allowed to hand focus to the overlay because the process is handling a hotkey
+  event — a hook does not get that.
+- **Accessible**: every field is associated with its label, the custom control
+  templates draw a visible keyboard focus ring, status lines are announced as
+  live regions, and the bubble exposes itself to screen readers through a focus
+  proxy rather than through per-segment automation peers.
 
 ### Known limitations
 
@@ -170,6 +207,27 @@ The `.exe` then lives in
 - While the app runs, every right click is held very briefly and replayed on
   release (needed to detect the gesture).
 - Right-dragging (dragging with the right button held) is not passed through.
+- Only the first nine shortcuts have a number-key shortcut. A larger ring is
+  still fully reachable with the arrow keys.
+- If another application has already claimed the hotkey, registering it fails
+  and the tray icon says so. Pick a different combination in settings; the
+  previous one stays active until a new one works.
+
+### Verified by hand, not by CI
+
+The build runs on a Windows runner, so it compiles the app and runs the unit
+tests, but nothing there can operate a window or a screen reader. These need a
+person on Windows:
+
+- the hotkey opens the bubble, and does so from a full-screen application;
+- the bubble actually takes focus (it logs a warning to
+  `%APPDATA%\CursorBubble\logs` if it does not) and the previous window is back
+  in front by the time the shortcut runs;
+- the acrylic blur still looks right after the window switches to keyboard mode;
+- the focus ring is visible on the dark settings chrome and on the glass;
+- Narrator reads the bubble, the four status lines, and each field's label —
+  a label association is a runtime binding, so a typo in one compiles cleanly
+  and simply says nothing.
 
 ### Cutting a release
 
@@ -201,6 +259,9 @@ src/CursorBubble/
   ClaudeCode/              hook handler, inbox storage, hook installer
   Responder/               glass window for answering sessions
   Config/                  model + JSON storage
+  Input/                   global hotkey: parsing + registration
+  Accessibility/           screen-reader announcements
+  Controls/                small shared controls
   Actions/                 running actions
   Tray/                    system tray icon + autostart
   Diagnostics/             file log
