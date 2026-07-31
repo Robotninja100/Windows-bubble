@@ -87,8 +87,10 @@ public sealed class MouseHook : IDisposable
         if ((data.flags & NativeMethods.LLMHF_INJECTED) != 0)
             return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
 
-        // The message id is a small constant; the truncation is intentional.
-        int msg = unchecked((int)wParam);
+        // Kept 64-bit: narrowing IntPtr to int here would be a conversion whose
+        // overflow behaviour changed in .NET 7, and the switch labels below are
+        // int constants that widen to long on their own.
+        long msg = wParam.ToInt64();
         bool swallow = false;
 
         switch (msg)

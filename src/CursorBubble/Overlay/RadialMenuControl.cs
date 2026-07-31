@@ -848,7 +848,7 @@ public sealed class RadialMenuControl : Canvas
     /// <c>corner / r</c> is close enough on the outer edge but visibly wrong on the
     /// much tighter inner one, where it leaves a notch instead of a fillet.
     /// </summary>
-    private static Geometry BuildPetalGeometry(
+    private static PathGeometry BuildPetalGeometry(
         double cx, double cy, double rIn, double rOut, double a0, double a1, double corner)
     {
         double sweep = a1 - a0;
