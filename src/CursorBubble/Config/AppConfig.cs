@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
+using CursorBubble.Native;
 
 namespace CursorBubble.Config;
 
@@ -86,10 +88,21 @@ public sealed class AppConfig
     public bool StartWithWindows { get; set; }
 
     /// <summary>
-    /// Anthropic API key for the "Generate with AI" script feature. Stored
-    /// locally in config.json (plain text) — treat it like any other secret.
+    /// Encrypted (DPAPI, per-user) Anthropic API key as persisted in config.json.
+    /// Use <see cref="AiApiKey"/> to read/write the plain-text value.
     /// </summary>
-    public string AiApiKey { get; set; } = "";
+    public string AiApiKeyProtected { get; set; } = "";
+
+    /// <summary>
+    /// Plain-text Anthropic API key for the "Generate with AI" feature. Not
+    /// serialized — the value is stored encrypted via <see cref="AiApiKeyProtected"/>.
+    /// </summary>
+    [JsonIgnore]
+    public string AiApiKey
+    {
+        get => DataProtection.Unprotect(AiApiKeyProtected);
+        set => AiApiKeyProtected = DataProtection.Protect(value);
+    }
 
     /// <summary>Claude model used to generate scripts.</summary>
     public string AiModel { get; set; } = "claude-opus-5";

@@ -332,8 +332,8 @@
                     <ComboBox x:Name="AiModelBox" SelectionChanged="AiModel_Changed" />
 
                     <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
-                        Een sleutel maak je aan op console.anthropic.com. De sleutel wordt lokaal in
-                        config.json bewaard (platte tekst) — deel je configbestand dus niet.
+                        Een sleutel maak je aan op console.anthropic.com. De sleutel wordt versleuteld
+                        (Windows DPAPI, alleen voor jouw account) opgeslagen in config.json.
                     </TextBlock>
                 </StackPanel>
             </Grid>

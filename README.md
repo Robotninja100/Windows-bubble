@@ -63,8 +63,9 @@ In plaats van zelf een script te schrijven kun je het laten genereren:
    `%APPDATA%\CursorBubble\scripts\` en aan het vakje gekoppeld.
 
 Het script wordt nooit automatisch uitgevoerd; het draait pas als je dat vakje
-in de bubbel kiest. De API-sleutel wordt lokaal in `config.json` bewaard (platte
-tekst) — deel je configbestand dus niet. Elke generatie kost een kleine
+in de bubbel kiest. De API-sleutel wordt **versleuteld** opgeslagen in
+`config.json` met de Windows Data Protection API (DPAPI) — alleen jouw
+Windows-account op deze pc kan hem ontsleutelen. Elke generatie kost een kleine
 hoeveelheid API-tegoed.
 
 ## Bouwen en draaien
