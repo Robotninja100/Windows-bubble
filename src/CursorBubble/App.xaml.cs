@@ -3,6 +3,7 @@ using System.Windows;
 using CursorBubble.Actions;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
+using CursorBubble.Diagnostics;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
 using CursorBubble.Responder;
@@ -33,6 +34,8 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        InstallCrashHandlers();
+
         // Hook mode: launched by Claude Code with piped JSON on stdin. Record the
         // session and exit without any UI (and before the single-instance mutex).
         if (e.Args.Length > 0 && e.Args[0] == "--hook")
@@ -43,6 +46,9 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+
+        Log.Prune();
+        Log.Info($"CursorBubble starting (v{typeof(App).Assembly.GetName().Version}).");
 
         // Only allow one running instance.
         _singleInstance = new Mutex(initiallyOwned: true, "CursorBubble.SingleInstance", out bool created);
@@ -77,10 +83,47 @@ public partial class App : Application
         {
             // Without the hook the gesture can never fire, but the tray icon and
             // settings still work — tell the user instead of crashing on startup.
+            Log.Error("Failed to install the global mouse hook.", ex);
             _tray.ShowError("Could not enable the mouse gesture: " + ex.Message);
         }
 
         StartInboxWatcher();
+    }
+
+    /// <summary>
+    /// Catch what would otherwise kill the app silently. A tray app has no
+    /// window to show a crash in, so an unhandled exception just makes the icon
+    /// disappear with no clue as to why.
+    /// </summary>
+    private void InstallCrashHandlers()
+    {
+        // UI-thread exceptions are usually local to one action (a dialog, a
+        // click handler). Log it, tell the user, and keep the app alive rather
+        // than tearing down a background process they rely on.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log.Error("Unhandled exception on the UI thread.", args.Exception);
+            args.Handled = true;
+            try
+            {
+                _tray?.ShowError("Something went wrong: " + args.Exception.Message);
+            }
+            catch
+            {
+                // the tray icon itself may be the thing that failed
+            }
+        };
+
+        // Nothing can be done about these — the runtime is going down anyway.
+        // Getting them on disk first is the whole point.
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Log.Error("Unhandled exception, the process is terminating.", args.ExceptionObject as Exception);
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Log.Error("Faulted task with nobody observing it.", args.Exception);
+            args.SetObserved();
+        };
     }
 
     private void OnCommit()
@@ -97,7 +140,10 @@ public partial class App : Application
 
         string? error = ActionRunner.Run(segment);
         if (error is not null)
+        {
+            Log.Warn($"Action for '{segment.Label}' failed: {error}");
             _tray?.ShowError(error);
+        }
     }
 
     private void OpenResponder()
@@ -131,9 +177,10 @@ public partial class App : Application
             _inboxWatcher.Created += (_, ev) => OnInboxFileEvent(ev.FullPath);
             _inboxWatcher.Changed += (_, ev) => OnInboxFileEvent(ev.FullPath);
         }
-        catch
+        catch (Exception ex)
         {
             // watcher is optional — the bubble badge still reflects the count on open
+            Log.Warn("Could not watch the inbox folder; tray notifications are off.", ex);
         }
     }
 
@@ -199,6 +246,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Log.Info("CursorBubble exiting.");
         _inboxWatcher?.Dispose();
         _hook?.Dispose();
         _tray?.Dispose();

@@ -42,8 +42,14 @@ public static class HookInstaller
     public static void Install()
     {
         JsonObject root = Load();
+        AddHooks(root, HookCommand());
+        Save(root);
+    }
+
+    /// <summary>Internal for tests: the pure merge, with no file access.</summary>
+    internal static void AddHooks(JsonObject root, string command)
+    {
         JsonObject hooks = GetOrCreateObject(root, "hooks");
-        string command = HookCommand();
 
         foreach (string ev in Events)
         {
@@ -60,14 +66,19 @@ public static class HookInstaller
                 })
             });
         }
-
-        Save(root);
     }
 
     /// <summary>Remove any hook groups that invoke CursorBubble.</summary>
     public static void Uninstall()
     {
         JsonObject root = Load();
+        RemoveHooks(root);
+        Save(root);
+    }
+
+    /// <summary>Internal for tests: the pure removal, with no file access.</summary>
+    internal static void RemoveHooks(JsonObject root)
+    {
         if (root["hooks"] is not JsonObject hooks)
             return;
 
@@ -82,13 +93,12 @@ public static class HookInstaller
                     groups.RemoveAt(i);
             }
         }
-
-        Save(root);
     }
 
     // ---- helpers -------------------------------------------------------------
 
-    private static bool EventHasOurHook(JsonObject root, string ev)
+    /// <summary>Internal for tests: is one of our hooks already registered?</summary>
+    internal static bool EventHasOurHook(JsonObject root, string ev)
         => root["hooks"] is JsonObject hooks &&
            hooks[ev] is JsonArray groups &&
            ContainsOurCommand(groups);

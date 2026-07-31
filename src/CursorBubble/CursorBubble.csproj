@@ -11,13 +11,43 @@
     <AssemblyName>CursorBubble</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
-    <Product>CursorBubble</Product>
     <!-- WFAC010 tells WinForms apps to move high-DPI settings out of the
          manifest. This is a WPF app (WinForms is only used for the tray icon),
          so the manifest is the right place for them. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
+
+  <!-- Shown in the file properties of the built exe, and by Windows in the
+       "unknown publisher" prompt. Version is overridden by the release
+       workflow from the git tag; 0.0.0-dev marks a local or CI build. -->
+  <PropertyGroup>
+    <Product>CursorBubble</Product>
+    <AssemblyTitle>CursorBubble</AssemblyTitle>
+    <Description>Radial glass shortcut menu around the mouse cursor.</Description>
+    <Company>Robotninja100</Company>
+    <Authors>Robotninja100</Authors>
+    <Copyright>Copyright © 2026 Robotninja100</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Robotninja100/Windows-bubble</RepositoryUrl>
+    <Version>0.0.0</Version>
+    <InformationalVersion>0.0.0-dev</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- Static analysis. Warnings are not errors yet: the existing warning set
+       has to be triaged first, and failing the build on it would block every
+       push in the meantime. Tighten to TreatWarningsAsErrors once it is clean. -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <!-- The test project reaches the pure logic (geometry, parsing, storage)
+       without making it public API. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CursorBubble.Tests" />
+  </ItemGroup>
 
   <!-- Bundle the icon as a WPF resource so windows and the tray can load it
        via pack:// at runtime (the exe icon comes from ApplicationIcon above). -->

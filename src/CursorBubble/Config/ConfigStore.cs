@@ -32,8 +32,7 @@ public static class ConfigStore
         {
             if (File.Exists(ConfigPath))
             {
-                string json = File.ReadAllText(ConfigPath);
-                AppConfig? cfg = JsonSerializer.Deserialize<AppConfig>(json, Options);
+                AppConfig? cfg = Deserialize(File.ReadAllText(ConfigPath));
                 if (cfg is not null)
                     return cfg;
             }
@@ -51,7 +50,17 @@ public static class ConfigStore
     public static void Save(AppConfig config)
     {
         Directory.CreateDirectory(Dir);
-        string json = JsonSerializer.Serialize(config, Options);
-        File.WriteAllText(ConfigPath, json);
+        File.WriteAllText(ConfigPath, Serialize(config));
     }
+
+    /// <summary>
+    /// Internal for tests. Unknown properties are ignored by design, so a config
+    /// written by an older build (with settings that have since been removed)
+    /// still loads instead of resetting the user back to defaults.
+    /// </summary>
+    internal static AppConfig? Deserialize(string json) =>
+        JsonSerializer.Deserialize<AppConfig>(json, Options);
+
+    internal static string Serialize(AppConfig config) =>
+        JsonSerializer.Serialize(config, Options);
 }

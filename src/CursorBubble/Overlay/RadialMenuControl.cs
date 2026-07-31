@@ -533,18 +533,7 @@ public sealed class RadialMenuControl : Canvas
     /// </summary>
     public int HitTest(double dx, double dy)
     {
-        if (_count == 0)
-            return -1;
-
-        double dist = Math.Sqrt(dx * dx + dy * dy);
-        if (dist < _inner)
-            return -1; // dead zone = cancel
-
-        double angle = ClockwiseAngleFromTop(dx, dy);
-        double rel = Mod(angle - _startAngle, 360);
-        double sweep = 360.0 / _count;
-        int index = (int)(rel / sweep);
-        return Math.Clamp(index, 0, _count - 1);
+        return RadialMath.SegmentAt(dx, dy, _count, _startAngle, _inner);
     }
 
     public void SetHighlight(int index)
@@ -861,21 +850,8 @@ public sealed class RadialMenuControl : Canvas
     {
         double sweep = a1 - a0;
 
-        if (rIn <= 0.5 || sweep <= 2.5)
-            return BuildSectorGeometry(cx, cy, rIn, rOut, a0, a1);
-
-        // Shrink the fillet until it fits rather than dropping back to sharp
-        // corners: the two fillets on one edge must not meet, so each may span
-        // at most half the sweep (less a sliver of straight edge). Inverting
-        // sin(phi) = corner / rho for the phi budget gives the ceilings below.
-        double maxPhi = (sweep - 2.0) / 2.0 * Math.PI / 180.0;
-        double sinPhi = Math.Sin(Math.Min(maxPhi, Math.PI / 2 - 1e-6));
-
-        corner = Math.Min(corner, (rOut - rIn) / 2.0);
-        corner = Math.Min(corner, rIn * sinPhi / (1 - sinPhi));   // inner fillets
-        corner = Math.Min(corner, rOut * sinPhi / (1 + sinPhi));  // outer fillets
-
-        if (corner <= 0.5)
+        corner = RadialMath.FittedCornerRadius(rIn, rOut, sweep, corner);
+        if (corner <= 0)
             return BuildSectorGeometry(cx, cy, rIn, rOut, a0, a1);
 
         double outerRho = rOut - corner;
@@ -973,12 +949,7 @@ public sealed class RadialMenuControl : Canvas
         return new Point(cx + r * Math.Sin(rad), cy - r * Math.Cos(rad));
     }
 
-    private static double Degrees(double radians) => radians * 180.0 / Math.PI;
-
-    private static double ClockwiseAngleFromTop(double dx, double dy)
-        => Mod(Math.Atan2(dx, -dy) * 180.0 / Math.PI, 360);
-
-    private static double Mod(double value, double m) => ((value % m) + m) % m;
+    private static double Degrees(double radians) => RadialMath.Degrees(radians);
 
     private static BitmapImage? TryLoadIcon(string? path)
     {

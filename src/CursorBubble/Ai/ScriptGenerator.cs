@@ -76,7 +76,8 @@ public static class ScriptGenerator
         return ParseResponse(body);
     }
 
-    private static GeneratedScript ParseResponse(string body)
+    /// <summary>Internal for tests: pull the script out of a raw API response body.</summary>
+    internal static GeneratedScript ParseResponse(string body)
     {
         using JsonDocument doc = JsonDocument.Parse(body);
         JsonElement root = doc.RootElement;
@@ -110,7 +111,7 @@ public static class ScriptGenerator
     }
 
     /// <summary>Extract the JSON object the model returned, tolerating stray fences/prose.</summary>
-    private static GeneratedScript ParseGeneratedJson(string text)
+    internal static GeneratedScript ParseGeneratedJson(string text)
     {
         int start = text.IndexOf('{');
         int end = text.LastIndexOf('}');
