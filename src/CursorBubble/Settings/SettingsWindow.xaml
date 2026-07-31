@@ -159,7 +159,27 @@
                 <StackPanel x:Name="PanelGeneral">
                     <TextBlock Text="General" Style="{StaticResource Heading}" />
                     <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows"
-                              Margin="0,4,0,14" />
+                              Margin="0,4,0,10" />
+
+                    <TextBlock x:Name="HotkeyCaption" Text="Keyboard shortcut for the bubble"
+                               Style="{StaticResource FieldLabel}" Margin="0,0,0,3" />
+                    <DockPanel Margin="0,0,0,14">
+                        <Button x:Name="HotkeyResetBtn" Content="_Reset" DockPanel.Dock="Right"
+                                Click="HotkeyResetBtn_Click"
+                                AutomationProperties.Name="Reset the keyboard shortcut to Ctrl+Alt+Space" />
+                        <!-- Read-only: the value is captured from the keys pressed,
+                             not typed. Focus it and press the combination. -->
+                        <TextBox x:Name="HotkeyBox" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                 PreviewKeyDown="HotkeyBox_PreviewKeyDown"
+                                 GotKeyboardFocus="HotkeyBox_GotKeyboardFocus"
+                                 LostKeyboardFocus="HotkeyBox_LostKeyboardFocus"
+                                 ToolTip="Click here, then press the combination you want"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=HotkeyCaption}"
+                                 AutomationProperties.HelpText="Press the key combination you want. Tab moves on without changing it." />
+                    </DockPanel>
+                    <TextBlock x:Name="HotkeyHint" Foreground="#6B7486" FontSize="11"
+                               Margin="0,-10,0,14" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Polite" />
                     <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1"
                             CornerRadius="8" Padding="14">
                         <StackPanel>

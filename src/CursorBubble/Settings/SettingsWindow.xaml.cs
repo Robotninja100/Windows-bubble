@@ -2,12 +2,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using CursorBubble.Accessibility;
 using CursorBubble.Ai;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
+using CursorBubble.Input;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
 using Microsoft.Win32;
@@ -117,6 +119,8 @@ public partial class SettingsWindow : Window
         _suspend = true;
 
         StartWithWindowsCheck.IsChecked = _working.StartWithWindows;
+        HotkeyBox.Text = HotkeySpec.ParseOrDefault(_working.MenuHotkey, HotkeySpec.Default).ToString();
+        HotkeyHint.Text = HotkeyDescription;
 
         StyleConfig s = _working.Style;
         OuterRadiusSlider.Value = s.OuterRadius;
@@ -483,6 +487,65 @@ public partial class SettingsWindow : Window
         // Show an example highlight so the accent colour is visible in the preview.
         _preview.SetHighlight(_working.Segments.Count > 1 ? 1 : (_working.Segments.Count == 1 ? 0 : -1));
     }
+
+    // ---- hotkey capture -----------------------------------------------------
+
+    /// <summary>
+    /// Capture the combination the user presses rather than the text they type.
+    /// </summary>
+    private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Tab must get through, or the capture box is itself a keyboard trap:
+        // there would be no way to leave the field without a mouse.
+        if (e.Key == Key.Tab) return;
+
+        e.Handled = true;
+
+        // Alt combinations arrive as Key.System with the real key in SystemKey.
+        // Reading e.Key alone makes Ctrl+Alt+X — the default — uncapturable.
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+
+        var modifiers = HotkeyModifiers.None;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) modifiers |= HotkeyModifiers.Control;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) modifiers |= HotkeyModifiers.Alt;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) modifiers |= HotkeyModifiers.Shift;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) modifiers |= HotkeyModifiers.Windows;
+
+        // Still holding the modifiers down and nothing else yet: show progress
+        // without committing to anything.
+        var candidate = new HotkeySpec(modifiers, key);
+        if (!HotkeySpec.TryParse(candidate.ToString(), out HotkeySpec spec))
+        {
+            Announce.Text(HotkeyHint, modifiers == HotkeyModifiers.None
+                ? "A shortcut needs at least Ctrl, Alt, Shift or the Windows key."
+                : "Keep holding and press a letter, digit or function key.");
+            return;
+        }
+
+        _working.MenuHotkey = spec.ToString();
+        HotkeyBox.Text = spec.ToString();
+
+        // Whether it can actually be registered is only known when the app tries;
+        // a conflict is reported from the tray after saving.
+        Announce.Text(HotkeyHint, $"Shortcut set to {spec}. It takes effect when you save.");
+    }
+
+    private void HotkeyBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => Announce.Text(HotkeyHint, "Press the combination you want. Tab moves on without changing it.");
+
+    private void HotkeyBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => HotkeyHint.Text = HotkeyDescription;
+
+    private void HotkeyResetBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _working.MenuHotkey = HotkeySpec.Default.ToString();
+        HotkeyBox.Text = HotkeySpec.Default.ToString();
+        Announce.Text(HotkeyHint, $"Shortcut reset to {HotkeySpec.Default}.");
+    }
+
+    private const string HotkeyDescription =
+        "Opens the bubble in the middle of the screen. Arrow keys or 1-9 to choose, " +
+        "Enter to run, Escape to cancel.";
 
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {
