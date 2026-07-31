@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Accessibility;
 using CursorBubble.Ai;
 using CursorBubble.Native;
 
@@ -39,13 +40,13 @@ public partial class AiScriptDialog : Window
         string description = DescriptionBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(description))
         {
-            StatusText.Text = "Describe what the script should do first.";
+            Announce.Text(StatusText, "Describe what the script should do first.");
             return;
         }
 
         GenerateBtn.IsEnabled = false;
         UseBtn.IsEnabled = false;
-        StatusText.Text = "Generating…";
+        Announce.Text(StatusText, "Generating…");
 
         try
         {
@@ -59,6 +60,9 @@ public partial class AiScriptDialog : Window
             {
                 WarningsText.Text = result.Warnings;
                 WarningBox.Visibility = Visibility.Visible;
+                // The box was Collapsed a moment ago, so it has no automation peer
+                // until a layout pass has run — hence the deferred raise.
+                Announce.LiveRegionWhenShown(WarningsText);
             }
             else
             {
@@ -69,11 +73,11 @@ public partial class AiScriptDialog : Window
             ResultInfo.Visibility = Visibility.Visible;
             ScriptArea.Visibility = Visibility.Visible;
             UseBtn.IsEnabled = true;
-            StatusText.Text = "Done — review the script below.";
+            Announce.Text(StatusText, "Done — review the script below.");
         }
         catch (Exception ex)
         {
-            StatusText.Text = ex.Message;
+            Announce.Text(StatusText, ex.Message);
         }
         finally
         {
@@ -86,7 +90,7 @@ public partial class AiScriptDialog : Window
         string script = ScriptBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(script))
         {
-            StatusText.Text = "There is no script to use.";
+            Announce.Text(StatusText, "There is no script to use.");
             return;
         }
         ResultScript = script;

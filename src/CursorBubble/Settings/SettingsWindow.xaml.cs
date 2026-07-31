@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Accessibility;
 using CursorBubble.Ai;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
@@ -419,41 +420,59 @@ public partial class SettingsWindow : Window
 
     // ---- Claude Code linking ------------------------------------------------
 
-    private void UpdateClaudeStatus()
+    /// <summary>
+    /// Refresh the link buttons and the status line. A <paramref name="message"/>
+    /// from a click handler is the outcome of what the user just did, so it wins
+    /// over the generic line — and it is the one worth announcing.
+    /// </summary>
+    private void UpdateClaudeStatus(string? message = null)
     {
         bool linked = HookInstaller.IsInstalled();
-        ClaudeStatusText.Text = linked
-            ? "Status: linked. New (or restarted) Claude Code sessions will show up in the bubble."
-            : "Status: not linked.";
+
+        if (message is null)
+        {
+            ClaudeStatusText.Text = linked
+                ? "Status: linked. New (or restarted) Claude Code sessions will show up in the bubble."
+                : "Status: not linked.";
+        }
+        else
+        {
+            Announce.Text(ClaudeStatusText, message);
+        }
+
         LinkClaudeBtn.IsEnabled = !linked;
         UnlinkClaudeBtn.IsEnabled = linked;
     }
 
     private void LinkClaude_Click(object sender, RoutedEventArgs e)
     {
+        string message;
         try
         {
             HookInstaller.Install();
-            ClaudeStatusText.Text = "Linked! Restart running Claude Code sessions so the hooks take effect.";
+            message = "Linked! Restart running Claude Code sessions so the hooks take effect.";
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Linking failed: " + ex.Message;
+            message = "Linking failed: " + ex.Message;
         }
-        UpdateClaudeStatus();
+        // Passed in rather than assigned here: the refresh used to overwrite it,
+        // so neither the success line nor the error was ever visible.
+        UpdateClaudeStatus(message);
     }
 
     private void UnlinkClaude_Click(object sender, RoutedEventArgs e)
     {
+        string? message = null;
         try
         {
             HookInstaller.Uninstall();
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Unlinking failed: " + ex.Message;
+            message = "Unlinking failed: " + ex.Message;
         }
-        UpdateClaudeStatus();
+        UpdateClaudeStatus(message);
     }
 
     // ---- preview & save -----------------------------------------------------

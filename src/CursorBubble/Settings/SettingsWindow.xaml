@@ -422,6 +422,7 @@
                                 AutomationProperties.Name="Unlink Claude Code" />
                     </StackPanel>
                     <TextBlock x:Name="ClaudeStatusText" Foreground="{StaticResource SubText}"
+                               AutomationProperties.LiveSetting="Polite"
                                Margin="0,10,0,0" TextWrapping="Wrap" />
                     <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
                         Replies are delivered to the right window through the clipboard (focus → paste
