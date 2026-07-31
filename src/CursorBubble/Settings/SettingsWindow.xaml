@@ -180,6 +180,13 @@
                         <TextBlock Text="Ruimte tussen vakjes" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="GapSlider" Minimum="0" Maximum="20" />
+
+                    <DockPanel>
+                        <TextBlock x:Name="CornerValue" DockPanel.Dock="Right"
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
+                        <TextBlock Text="Ronde hoeken" Style="{StaticResource FieldLabel}" />
+                    </DockPanel>
+                    <Slider x:Name="CornerSlider" Minimum="0" Maximum="60" />
                 </StackPanel>
 
                 <!-- Segmenten -->
@@ -271,16 +278,9 @@
                     <DockPanel>
                         <TextBlock x:Name="TintOpacityValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Opacity (Vervaging)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="Glas-doorzichtigheid" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="TintOpacitySlider" Minimum="0" Maximum="1" />
-
-                    <DockPanel>
-                        <TextBlock x:Name="SegmentOpacityValue" DockPanel.Dock="Right"
-                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Doorzichtigheid vakjes" Style="{StaticResource FieldLabel}" />
-                    </DockPanel>
-                    <Slider x:Name="SegmentOpacitySlider" Minimum="0" Maximum="1" />
 
                     <Grid Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
@@ -366,14 +366,16 @@
             <!-- Live preview -->
             <Border Grid.Row="1" Margin="0,16,0,0" Height="170" CornerRadius="10"
                     BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                <!-- Light backdrop: the glass is designed to sit on a desktop
+                     wallpaper, so a dark preview would misrepresent it. -->
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#5A6883" Offset="0" />
-                        <GradientStop Color="#2A3346" Offset="1" />
+                        <GradientStop Color="#D8E1EC" Offset="0" />
+                        <GradientStop Color="#8CA0B8" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid>
-                    <TextBlock Text="Live Preview" Foreground="#DCE4F2" FontSize="11"
+                    <TextBlock Text="Live Preview" Foreground="#33404F" FontSize="11"
                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,6,0,0" />
                     <Viewbox x:Name="PreviewBox" Margin="10,20,10,10" Stretch="Uniform" />
                 </Grid>

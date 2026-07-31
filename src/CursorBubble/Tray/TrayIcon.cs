@@ -22,17 +22,17 @@ public sealed class TrayIcon : IDisposable
     {
         var menu = new ContextMenuStrip();
 
-        var settingsItem = new ToolStripMenuItem("Settings…");
+        var settingsItem = new ToolStripMenuItem("Instellingen openen");
         settingsItem.Click += (_, _) => SettingsRequested?.Invoke();
 
-        _autostartItem = new ToolStripMenuItem("Start with Windows")
+        _autostartItem = new ToolStripMenuItem("Met Windows opstarten")
         {
             CheckOnClick = true,
             Checked = autostartEnabled
         };
         _autostartItem.CheckedChanged += (_, _) => AutostartToggled?.Invoke(_autostartItem.Checked);
 
-        var exitItem = new ToolStripMenuItem("Exit");
+        var exitItem = new ToolStripMenuItem("Afsluiten");
         exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
         menu.Items.Add(settingsItem);
@@ -42,7 +42,7 @@ public sealed class TrayIcon : IDisposable
 
         _notifyIcon = new NotifyIcon
         {
-            Text = "CursorBubble — hold right + click left",
+            Text = "CursorBubble — rechts vasthouden + links klikken",
             Icon = CreateIcon(),
             Visible = true,
             ContextMenuStrip = menu

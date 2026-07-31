@@ -43,11 +43,11 @@ public sealed class StyleConfig
     /// <summary>Glass tint colour as #RRGGBB.</summary>
     public string TintColor { get; set; } = "#FFFFFF";
 
-    /// <summary>Opacity of the tint laid over the acrylic blur (0..1).</summary>
-    public double TintOpacity { get; set; } = 0.30;
-
-    /// <summary>Opacity of the individual segment fills (0..1).</summary>
-    public double SegmentOpacity { get; set; } = 0.35;
+    /// <summary>
+    /// Opacity of the glass itself (0..1): the tint laid over the blurred
+    /// desktop inside each segment. Lower = more see-through.
+    /// </summary>
+    public double TintOpacity { get; set; } = 0.42;
 
     /// <summary>Accent colour for the highlighted segment as #RRGGBB.</summary>
     public string HighlightColor { get; set; } = "#EAF2FF";
@@ -69,7 +69,10 @@ public sealed class StyleConfig
     public double InnerRadius { get; set; } = 60;
 
     /// <summary>Angular gap between segments, in degrees (visual separation).</summary>
-    public double SegmentGap { get; set; } = 4;
+    public double SegmentGap { get; set; } = 5;
+
+    /// <summary>Corner rounding of a segment, in DIPs. 0 = sharp wedges.</summary>
+    public double SegmentCornerRadius { get; set; } = 34;
 
     /// <summary>Angle (degrees, clockwise from the top) where the first segment starts.</summary>
     public double StartAngle { get; set; } = 0;

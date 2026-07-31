@@ -157,9 +157,25 @@ internal static class NativeMethods
     [DllImport("dwmapi.dll")]
     public static extern int DwmEnableBlurBehindWindow(IntPtr hWnd, ref DWM_BLURBEHIND pBlurBehind);
 
-    // GDI region for the circular blur clip.
+    // GDI regions for the blur clip: an ellipse for the plain circular case,
+    // polygons combined with OR when the blur follows the glass segments.
     [DllImport("gdi32.dll")]
     public static extern IntPtr CreateEllipticRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreatePolygonRgn(POINT[] lppt, int cPoints, int fnPolyFillMode);
+
+    [DllImport("gdi32.dll")]
+    public static extern int CombineRgn(IntPtr hrgnDest, IntPtr hrgnSrc1, IntPtr hrgnSrc2, int fnCombineMode);
+
+    /// <summary>PolyFillMode: fill every enclosed area regardless of winding direction.</summary>
+    public const int WINDING = 2;
+
+    /// <summary>CombineRgn mode: union.</summary>
+    public const int RGN_OR = 2;
 
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

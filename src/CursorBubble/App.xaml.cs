@@ -68,7 +68,17 @@ public partial class App : Application
         _hook.MenuOpen += p => Dispatcher.InvokeAsync(() => _overlay!.ShowAt(p));
         _hook.MenuMove += p => Dispatcher.InvokeAsync(() => _overlay!.UpdateCursor(p));
         _hook.MenuCommit += () => Dispatcher.InvokeAsync(OnCommit);
-        _hook.Install();
+
+        try
+        {
+            _hook.Install();
+        }
+        catch (Exception ex)
+        {
+            // Without the hook the gesture can never fire, but the tray icon and
+            // settings still work — tell the user instead of crashing on startup.
+            _tray.ShowError("De muisgebaren konden niet worden geactiveerd: " + ex.Message);
+        }
 
         StartInboxWatcher();
     }

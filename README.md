@@ -5,7 +5,11 @@ toont via een muisgebaar. In de bubbel kies je een shortcut die een programma
 of bestand opent, of een script uitvoert. De layout, transparantie en acties
 stel je in de app zelf in.
 
-![De bubbel rond de cursor met glazen segmenten](docs/reference.png)
+![De bubbel rond de cursor met glazen segmenten](docs/glass-preview.png)
+
+> Bovenstaande afbeelding is een **rendering** van de vormen en het glaseffect
+> zoals de app ze tekent (zelfde geometrie en verlopen), geen schermafbeelding
+> van Windows.
 
 ## Zo werkt het
 
@@ -27,11 +31,12 @@ sluit je de app af.
 Rechtsklik (of dubbelklik) op het tray-icoon → **Instellingen**:
 
 - **Algemeen** — autostart en uitleg.
-- **Layout** — buiten-/binnenradius, start-hoek en de ruimte tussen de vakjes.
+- **Layout** — buiten-/binnenradius, start-hoek, de ruimte tussen de vakjes en
+  hoe rond de hoeken van de vakjes zijn.
 - **Segmenten** — vakjes toevoegen, bewerken, verwijderen en herordenen. Per
   segment: naam, actie, doel, argumenten en een optioneel icoon.
 - **Stijl** — glas-vervaging (acrylic) aan/uit, **animatie bij openen**,
-  transparantie, en de glas-, accent- en tekstkleur.
+  glas-doorzichtigheid, en de glas-, accent- en tekstkleur.
 
 Het instellingenvenster zelf heeft dezelfde glas-look: op **Windows 11** met een
 echte acrylic-backdrop, op **Windows 10** een egaal donker thema.
@@ -135,8 +140,12 @@ De `.exe` staat daarna in
   contextmenu; een gewone rechtsklik wordt opnieuw afgespeeld met `SendInput`.
 - **Transparant, top-most, klik-transparant overlay-venster**; hit-testing loopt
   via de globale cursorpositie, dus een vastgehouden muisknop is geen probleem.
-- **Frosted glass** via `DwmEnableBlurBehindWindow` met een cirkelvormige regio,
-  zodat alleen de cirkel het bureaublad vervaagt.
+- **Liquid glass** — elk vakje is een afgerond segment met een dun, doorzichtig
+  midden en een lichtrand die als gebroken licht langs de rand loopt (een brede
+  zachte band plus een smalle felle lijn), met daarbovenop een glans.
+- **Frosted glass** via `DwmEnableBlurBehindWindow`, met een regio die de
+  **vakjes zelf** volgt in plaats van een hele cirkel: het bureaublad is alleen
+  vervaagd ónder het glas, de ruimte ertussen en het midden blijven scherp.
 - **DPI-bewust** (Per-Monitor v2); de bubbel wordt in fysieke pixels op de
   cursor geplaatst.
 
@@ -144,8 +153,8 @@ De `.exe` staat daarna in
 
 - De blur achter de bubbel gebruikt `DwmEnableBlurBehindWindow`. Op sommige
   Windows-versies is die blur subtiel of uitgeschakeld; zet in dat geval
-  **Glas-vervaging (acrylic)** uit voor een egale doorzichtige cirkel. De bubbel
-  blijft altijd zichtbaar als translucent glas.
+  **Glas-vervaging (acrylic)** uit — de vakjes worden dan egaal doorzichtig
+  ingekleurd in plaats van vervaagd. De bubbel blijft altijd zichtbaar als glas.
 - Terwijl de app draait wordt elke rechtermuisklik heel kort vastgehouden en bij
   loslaten opnieuw afgespeeld (nodig om het gebaar te kunnen detecteren).
 - Rechts-slepen (met de rechterknop ingedrukt slepen) wordt niet doorgegeven.

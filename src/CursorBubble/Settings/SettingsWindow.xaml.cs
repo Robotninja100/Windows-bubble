@@ -121,11 +121,11 @@ public partial class SettingsWindow : Window
         InnerRadiusSlider.Value = s.InnerRadius;
         StartAngleSlider.Value = s.StartAngle;
         GapSlider.Value = s.SegmentGap;
+        CornerSlider.Value = s.SegmentCornerRadius;
 
         AcrylicCheck.IsChecked = s.UseAcrylicBlur;
         AnimateCheck.IsChecked = s.Animate;
         TintOpacitySlider.Value = s.TintOpacity;
-        SegmentOpacitySlider.Value = s.SegmentOpacity;
         TintColorBox.Text = s.TintColor;
         HighlightColorBox.Text = s.HighlightColor;
         LabelColorBox.Text = s.LabelColor;
@@ -145,8 +145,8 @@ public partial class SettingsWindow : Window
         InnerRadiusSlider.ValueChanged += (_, _) => OnLayoutChanged();
         StartAngleSlider.ValueChanged += (_, _) => OnLayoutChanged();
         GapSlider.ValueChanged += (_, _) => OnLayoutChanged();
+        CornerSlider.ValueChanged += (_, _) => OnLayoutChanged();
         TintOpacitySlider.ValueChanged += (_, _) => OnStyleChanged();
-        SegmentOpacitySlider.ValueChanged += (_, _) => OnStyleChanged();
     }
 
     // ---- navigation ---------------------------------------------------------
@@ -184,6 +184,7 @@ public partial class SettingsWindow : Window
         s.InnerRadius = InnerRadiusSlider.Value;
         s.StartAngle = StartAngleSlider.Value;
         s.SegmentGap = GapSlider.Value;
+        s.SegmentCornerRadius = CornerSlider.Value;
         UpdateValueLabels();
         RebuildPreview();
     }
@@ -193,7 +194,6 @@ public partial class SettingsWindow : Window
         if (_suspend) return;
         StyleConfig s = _working.Style;
         s.TintOpacity = TintOpacitySlider.Value;
-        s.SegmentOpacity = SegmentOpacitySlider.Value;
         UpdateValueLabels();
         RebuildPreview();
     }
@@ -227,8 +227,8 @@ public partial class SettingsWindow : Window
         InnerRadiusValue.Text = $"{InnerRadiusSlider.Value:0}px";
         StartAngleValue.Text = $"{StartAngleSlider.Value:0}°";
         GapValue.Text = $"{GapSlider.Value:0}°";
+        CornerValue.Text = $"{CornerSlider.Value:0}px";
         TintOpacityValue.Text = $"{TintOpacitySlider.Value * 100:0}%";
-        SegmentOpacityValue.Text = $"{SegmentOpacitySlider.Value * 100:0}%";
     }
 
     private void UpdateSwatches()

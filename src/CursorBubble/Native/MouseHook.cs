@@ -38,7 +38,6 @@ public sealed class MouseHook : IDisposable
     private State _state = State.Idle;
     private bool _leftDown;
     private bool _rightDown;
-    private NativeMethods.POINT _rightDownPoint;
 
     /// <summary>Raised when the gesture opens the menu. Argument: cursor position.</summary>
     public event Action<ScreenPoint>? MenuOpen;
@@ -95,7 +94,6 @@ public sealed class MouseHook : IDisposable
         {
             case NativeMethods.WM_RBUTTONDOWN:
                 _rightDown = true;
-                _rightDownPoint = data.pt;
                 if (_state == State.Idle)
                 {
                     // Hold the right-down back until we know whether the user

@@ -65,7 +65,7 @@ public partial class RadialMenuWindow : Window
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, ex);
     }
 
-    /// <summary>(Re)apply the circular desktop blur for the current window size.</summary>
+    /// <summary>(Re)apply the desktop blur, clipped to the glass segments.</summary>
     private void ApplyGlass(int sizePx)
     {
         IntPtr hwnd = new WindowInteropHelper(this).Handle;
@@ -73,7 +73,7 @@ public partial class RadialMenuWindow : Window
             return;
 
         if (_config.Style.UseAcrylicBlur)
-            AcrylicHelper.EnableCircularBlur(hwnd, sizePx);
+            AcrylicHelper.EnableBlur(hwnd, _menu.BuildBlurPolygons(_scale), sizePx);
         else
             AcrylicHelper.Disable(hwnd);
     }
