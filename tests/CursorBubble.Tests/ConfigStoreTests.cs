@@ -1,4 +1,5 @@
 using CursorBubble.Config;
+using CursorBubble.Input;
 using Xunit;
 
 namespace CursorBubble.Tests;
@@ -99,5 +100,35 @@ public class ConfigStoreTests
         // Everything except the inbox needs somewhere to go.
         Assert.All(config.Segments.Where(s => s.Action != ActionType.ClaudeInbox),
                    s => Assert.False(string.IsNullOrWhiteSpace(s.Target)));
+    }
+
+    [Fact]
+    public void A_config_written_before_the_hotkey_existed_still_gets_one()
+    {
+        // This is what protects existing users: their config.json has no
+        // MenuHotkey key at all, and they must not end up with a blank one.
+        const string json = """
+            { "StartWithWindows": true, "AiModel": "claude-opus-5", "Segments": [] }
+            """;
+
+        AppConfig? loaded = ConfigStore.Deserialize(json);
+
+        Assert.NotNull(loaded);
+        Assert.Equal("Ctrl+Alt+Space", loaded!.MenuHotkey);
+        Assert.True(HotkeySpec.TryParse(loaded.MenuHotkey, out HotkeySpec spec));
+        Assert.Equal(HotkeySpec.Default, spec);
+    }
+
+    [Fact]
+    public void The_hotkey_persists_as_readable_text()
+    {
+        AppConfig original = AppConfig.CreateDefault();
+        original.MenuHotkey = "Ctrl+Shift+F9";
+
+        string json = ConfigStore.Serialize(original);
+        Assert.Contains("\"Ctrl+Shift+F9\"", json, StringComparison.Ordinal);
+
+        AppConfig? loaded = ConfigStore.Deserialize(json);
+        Assert.Equal("Ctrl+Shift+F9", loaded!.MenuHotkey);
     }
 }

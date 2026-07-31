@@ -115,6 +115,14 @@ public sealed class AppConfig
     public string AiModel { get; set; } = "claude-opus-5";
 
     /// <summary>
+    /// Global hotkey that opens the bubble at the centre of the active screen,
+    /// in keyboard mode. Stored as text (e.g. "Ctrl+Alt+Space") so config.json
+    /// stays hand-editable; parsed with <c>HotkeySpec.ParseOrDefault</c>, which
+    /// falls back to the default rather than leaving the user with no hotkey.
+    /// </summary>
+    public string MenuHotkey { get; set; } = "Ctrl+Alt+Space";
+
+    /// <summary>
     /// A sensible starter configuration so the bubble is useful on first run.
     /// </summary>
     public static AppConfig CreateDefault()
