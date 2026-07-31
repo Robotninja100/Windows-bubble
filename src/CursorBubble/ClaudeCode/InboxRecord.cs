@@ -59,7 +59,10 @@ public sealed class InboxRecord
     {
         get
         {
-            string oneLine = Message.Replace("\r", " ").Replace("\n", " ").Trim();
+            // Collapse every run of whitespace, not just the individual newline
+            // characters: replacing "\r" and "\n" one at a time turns each CRLF
+            // — which is every line break on Windows — into a double space.
+            string oneLine = string.Join(' ', Message.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
             return oneLine.Length <= 70 ? oneLine : oneLine[..70] + "…";
         }
     }

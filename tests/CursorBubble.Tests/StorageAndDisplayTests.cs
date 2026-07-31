@@ -92,6 +92,18 @@ public class InboxRecordTests
         Assert.Equal("line one line two line three", record.Snippet);
     }
 
+    [Theory]
+    [InlineData("a\r\nb")]        // Windows line break — the common case
+    [InlineData("a\n\nb")]        // blank line between paragraphs
+    [InlineData("a \t b")]        // mixed spaces and tabs
+    [InlineData("a   b")]
+    public void Runs_of_whitespace_collapse_to_a_single_space(string message)
+    {
+        // Replacing "\r" and "\n" separately used to leave a double space behind
+        // for every CRLF, which is every line break a Windows session produces.
+        Assert.Equal("a b", new InboxRecord { Message = message }.Snippet);
+    }
+
     [Fact]
     public void A_long_message_is_truncated_with_an_ellipsis()
     {
