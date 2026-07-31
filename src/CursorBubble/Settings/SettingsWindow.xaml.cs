@@ -49,6 +49,7 @@ public partial class SettingsWindow : Window
         new("Foto", ""),
         new("Muziek", ""),
         new("Terminal", ""),
+        new("Bericht / Chat", ""),
         new("Rekenmachine", ""),
         new("Home", ""),
     };

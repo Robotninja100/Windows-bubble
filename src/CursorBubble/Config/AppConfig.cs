@@ -133,7 +133,7 @@ public sealed class AppConfig
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Draai Back-up\nScript", Glyph = "",
+            Label = "Draai Back-up\nScript", Glyph = "",
             Action = ActionType.RunScript,
             Target = "powershell -NoProfile -Command \"Write-Host 'Vervang dit door je eigen back-up script'\""
         });
@@ -149,7 +149,7 @@ public sealed class AppConfig
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Claude Code",
+            Label = "Claude Code", Glyph = "",
             Action = ActionType.ClaudeInbox
         });
         return cfg;

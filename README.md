@@ -9,7 +9,9 @@ stel je in de app zelf in.
 
 > Bovenstaande afbeelding is een **rendering** van de vormen en het glaseffect
 > zoals de app ze tekent (zelfde geometrie en verlopen), geen schermafbeelding
-> van Windows.
+> van Windows. De iconen zijn hier natekeningen: in de app komen ze uit het
+> Windows-systeemlettertype **Segoe Fluent Icons**, dat alleen op Windows
+> bestaat.
 
 ## Zo werkt het
 
@@ -34,7 +36,9 @@ Rechtsklik (of dubbelklik) op het tray-icoon → **Instellingen**:
 - **Layout** — buiten-/binnenradius, start-hoek, de ruimte tussen de vakjes en
   hoe rond de hoeken van de vakjes zijn.
 - **Segmenten** — vakjes toevoegen, bewerken, verwijderen en herordenen. Per
-  segment: naam, actie, doel, argumenten en een optioneel icoon.
+  segment: naam, actie, doel, argumenten en een icoon. Kies een icoon uit de
+  lijst (uit het Windows-lettertype Segoe Fluent Icons) of wijs een eigen
+  `.png`/`.ico` aan; die gaat dan voor.
 - **Stijl** — glas-vervaging (acrylic) aan/uit, **animatie bij openen**,
   glas-doorzichtigheid, en de glas-, accent- en tekstkleur.
 
