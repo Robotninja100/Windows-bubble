@@ -33,14 +33,15 @@
     <InformationalVersion>0.0.0-dev</InformationalVersion>
   </PropertyGroup>
 
-  <!-- Static analysis. Warnings are not errors yet: the existing warning set
-       has to be triaged first, and failing the build on it would block every
-       push in the meantime. Tighten to TreatWarningsAsErrors once it is clean. -->
+  <!-- Static analysis. The warning set is clean, so warnings are errors: that is
+       what keeps it clean. Anything genuinely not worth fixing is silenced in
+       .editorconfig with a reason next to it, not left to accumulate. -->
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <!-- The test project reaches the pure logic (geometry, parsing, storage)
