@@ -164,4 +164,19 @@ internal static class NativeMethods
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool DeleteObject(IntPtr hObject);
+
+    // ---- DWM window attributes: dark titlebar, rounded corners, backdrop ------
+    public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+
+    // DWM_WINDOW_CORNER_PREFERENCE
+    public const int DWMWCP_ROUND = 2;
+
+    // DWM_SYSTEMBACKDROP_TYPE
+    public const int DWMSBT_MAINWINDOW = 2;      // Mica
+    public const int DWMSBT_TRANSIENTWINDOW = 3; // Acrylic
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 }

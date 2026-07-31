@@ -5,32 +5,91 @@
         Width="760" Height="560"
         MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen"
-        Background="#F3F5F9"
-        FontFamily="Segoe UI">
+        Background="#1B1F27"
+        Icon="pack://application:,,,/Assets/app.ico"
+        FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Ideal">
 
     <Window.Resources>
+        <SolidColorBrush x:Key="PanelText" Color="#EAEEF6" />
+        <SolidColorBrush x:Key="SubText" Color="#9AA4B4" />
+        <SolidColorBrush x:Key="CardBg" Color="#1EFFFFFF" />
+        <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="Accent" Color="#4C8DFF" />
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
+        </Style>
         <Style TargetType="TextBlock" x:Key="Heading">
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#20242C" />
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
             <Setter Property="Margin" Value="0,0,0,10" />
         </Style>
         <Style TargetType="TextBlock" x:Key="FieldLabel">
-            <Setter Property="Foreground" Value="#4A5160" />
+            <Setter Property="Foreground" Value="{StaticResource SubText}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,10,0,3" />
         </Style>
+
         <Style TargetType="Button">
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="4,0,0,0" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#D5DAE3" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
+                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#11FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="6,4" />
-            <Setter Property="BorderBrush" Value="#D5DAE3" />
+            <Setter Property="Background" Value="#2A0E1116" />
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
+            <Setter Property="CaretBrush" Value="{StaticResource PanelText}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
+        </Style>
+
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#333C8DFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -41,10 +100,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- Left navigation -->
-        <Border Grid.Column="0" Background="#E7EBF2" BorderBrush="#D5DAE3" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="#14FFFFFF" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,1,0">
             <StackPanel Margin="0,16,0,0">
                 <TextBlock Text="CursorBubble" FontWeight="Bold" FontSize="15"
-                           Foreground="#20242C" Margin="16,0,16,16" />
+                           Foreground="{StaticResource PanelText}" Margin="16,0,16,16" />
                 <ListBox x:Name="NavList" BorderThickness="0" Background="Transparent"
                          SelectedIndex="0" SelectionChanged="NavList_SelectionChanged">
                     <ListBoxItem Content="Algemeen" Padding="16,10" />
@@ -70,12 +129,12 @@
                     <TextBlock Text="Algemeen" Style="{StaticResource Heading}" />
                     <CheckBox x:Name="StartWithWindowsCheck" Content="Met Windows opstarten"
                               Margin="0,4,0,14" />
-                    <Border Background="#FFFFFF" BorderBrush="#D5DAE3" BorderThickness="1"
+                    <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1"
                             CornerRadius="8" Padding="14">
                         <StackPanel>
                             <TextBlock Text="Zo gebruik je het" FontWeight="SemiBold"
-                                       Foreground="#20242C" Margin="0,0,0,6" />
-                            <TextBlock TextWrapping="Wrap" Foreground="#4A5160">
+                                       Foreground="{StaticResource PanelText}" Margin="0,0,0,6" />
+                            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}">
                                 Houd de <Run FontWeight="Bold">rechtermuisknop</Run> ingedrukt en
                                 klik dan met <Run FontWeight="Bold">links</Run>. De bubbel verschijnt
                                 rond je cursor. Beweeg naar een vakje en laat de muisknop los om die
@@ -83,7 +142,7 @@
                                 bubbel zonder actie.
                             </TextBlock>
                             <TextBlock x:Name="ConfigPathText" TextWrapping="Wrap"
-                                       Foreground="#8A93A6" FontSize="11" Margin="0,10,0,0" />
+                                       Foreground="#6B7486" FontSize="11" Margin="0,10,0,0" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -94,28 +153,28 @@
 
                     <DockPanel>
                         <TextBlock x:Name="OuterRadiusValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Radius (Buiten)" Style="{StaticResource FieldLabel}" Margin="0,0,0,0" />
                     </DockPanel>
                     <Slider x:Name="OuterRadiusSlider" Minimum="80" Maximum="320" />
 
                     <DockPanel>
                         <TextBlock x:Name="InnerRadiusValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Radius (Binnen)" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="InnerRadiusSlider" Minimum="0" Maximum="220" />
 
                     <DockPanel>
                         <TextBlock x:Name="StartAngleValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Start-hoek" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="StartAngleSlider" Minimum="0" Maximum="360" />
 
                     <DockPanel>
                         <TextBlock x:Name="GapValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Ruimte tussen vakjes" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="GapSlider" Minimum="0" Maximum="20" />
@@ -144,7 +203,8 @@
                             <Button x:Name="UpBtn" Content="▲ Omhoog" Margin="0,0,4,0" Click="UpBtn_Click" />
                             <Button x:Name="DownBtn" Content="▼ Omlaag" Click="DownBtn_Click" />
                         </StackPanel>
-                        <ListBox x:Name="SegmentsList" DisplayMemberPath="Label"
+                        <ListBox x:Name="SegmentsList" DisplayMemberPath="Label" Background="#22101317"
+                                 BorderBrush="{StaticResource CardBorder}" Foreground="{StaticResource PanelText}"
                                  SelectionChanged="SegmentsList_SelectionChanged" />
                     </DockPanel>
 
@@ -157,7 +217,7 @@
                             <TextBlock x:Name="IconPreview" DockPanel.Dock="Right"
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="22" Width="30" TextAlignment="Center"
-                                       Foreground="#20242C" VerticalAlignment="Center" />
+                                       Foreground="{StaticResource PanelText}" VerticalAlignment="Center" />
                             <ComboBox x:Name="IconGlyphBox" SelectionChanged="IconGlyphBox_Changed">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
@@ -201,16 +261,19 @@
                     <CheckBox x:Name="AcrylicCheck" Content="Glas-vervaging (acrylic)"
                               Margin="0,0,0,6" Checked="Acrylic_Changed" Unchecked="Acrylic_Changed" />
 
+                    <CheckBox x:Name="AnimateCheck" Content="Animatie bij openen"
+                              Margin="0,0,0,6" Checked="Animate_Changed" Unchecked="Animate_Changed" />
+
                     <DockPanel>
                         <TextBlock x:Name="TintOpacityValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Opacity (Vervaging)" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="TintOpacitySlider" Minimum="0" Maximum="1" />
 
                     <DockPanel>
                         <TextBlock x:Name="SegmentOpacityValue" DockPanel.Dock="Right"
-                                   Foreground="#4A5160" MinWidth="52" TextAlignment="Right" />
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
                         <TextBlock Text="Doorzichtigheid vakjes" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
                     <Slider x:Name="SegmentOpacitySlider" Minimum="0" Maximum="1" />
@@ -225,7 +288,7 @@
                             <TextBlock Text="Glaskleur" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="TintSwatch" Width="22" Height="22" DockPanel.Dock="Right"
-                                        BorderBrush="#D5DAE3" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
+                                        BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
                                 <TextBox x:Name="TintColorBox" TextChanged="Color_Changed" />
                             </DockPanel>
                         </StackPanel>
@@ -233,7 +296,7 @@
                             <TextBlock Text="Accentkleur" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="HighlightSwatch" Width="22" Height="22" DockPanel.Dock="Right"
-                                        BorderBrush="#D5DAE3" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
+                                        BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
                                 <TextBox x:Name="HighlightColorBox" TextChanged="Color_Changed" />
                             </DockPanel>
                         </StackPanel>
@@ -241,7 +304,7 @@
                             <TextBlock Text="Tekstkleur" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="LabelSwatch" Width="22" Height="22" DockPanel.Dock="Right"
-                                        BorderBrush="#D5DAE3" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
+                                        BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
                                 <TextBox x:Name="LabelColorBox" TextChanged="Color_Changed" />
                             </DockPanel>
                         </StackPanel>
@@ -251,11 +314,11 @@
 
             <!-- Live preview -->
             <Border Grid.Row="1" Margin="0,16,0,0" Height="170" CornerRadius="10"
-                    BorderBrush="#D5DAE3" BorderThickness="1">
+                    BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#6C7A94" Offset="0" />
-                        <GradientStop Color="#33405A" Offset="1" />
+                        <GradientStop Color="#5A6883" Offset="0" />
+                        <GradientStop Color="#2A3346" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid>
@@ -268,8 +331,22 @@
             <!-- Buttons -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
                 <Button x:Name="CancelBtn" Content="Annuleren" Click="CancelBtn_Click" />
-                <Button x:Name="SaveBtn" Content="Opslaan" Background="#4C8DFF" Foreground="White"
-                        BorderBrush="#3C7DEF" Click="SaveBtn_Click" />
+                <Button x:Name="SaveBtn" Content="Opslaan" Foreground="White" Click="SaveBtn_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" CornerRadius="6" Background="{StaticResource Accent}"
+                                    BorderBrush="#5C9BFF" BorderThickness="1">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="12,6" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#5C9BFF" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
             </StackPanel>
         </Grid>
     </Grid>

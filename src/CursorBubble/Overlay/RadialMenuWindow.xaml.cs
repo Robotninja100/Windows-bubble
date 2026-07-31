@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using CursorBubble.Config;
 using CursorBubble.Native;
 
@@ -16,6 +18,7 @@ namespace CursorBubble.Overlay;
 public partial class RadialMenuWindow : Window
 {
     private readonly RadialMenuControl _menu = new();
+    private readonly ScaleTransform _scale = new(1, 1);
     private AppConfig _config;
 
     private bool _shownOnce;
@@ -33,6 +36,8 @@ public partial class RadialMenuWindow : Window
         Left = -10000;
         Top = -10000;
         RootGrid.Children.Add(_menu);
+        RootGrid.RenderTransformOrigin = new Point(0.5, 0.5);
+        RootGrid.RenderTransform = _scale;
         _menu.Build(_config);
     }
 
@@ -110,9 +115,34 @@ public partial class RadialMenuWindow : Window
         // Clip the desktop blur to the circle at the current size.
         ApplyGlass(sizePx);
 
+        PlayOpenAnimation();
+
         _currentIndex = -1;
         _menu.SetHighlight(-1);
         UpdateCursor(cursor);
+    }
+
+    private void PlayOpenAnimation()
+    {
+        if (!_config.Style.Animate)
+        {
+            // Ensure a clean, fully-visible state when animation is disabled.
+            RootGrid.BeginAnimation(OpacityProperty, null);
+            _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            _scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            RootGrid.Opacity = 1;
+            _scale.ScaleX = _scale.ScaleY = 1;
+            return;
+        }
+
+        var dur = TimeSpan.FromMilliseconds(130);
+        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        var fade = new DoubleAnimation(0, 1, dur);
+        var pop = new DoubleAnimation(0.85, 1.0, dur) { EasingFunction = ease };
+
+        RootGrid.BeginAnimation(OpacityProperty, fade);
+        _scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+        _scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
     }
 
     /// <summary>Update the highlighted segment from the current cursor position.</summary>

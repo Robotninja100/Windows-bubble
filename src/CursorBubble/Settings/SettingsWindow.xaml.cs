@@ -2,8 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
 using CursorBubble.Config;
+using CursorBubble.Native;
 using CursorBubble.Overlay;
 using Microsoft.Win32;
 
@@ -82,6 +84,16 @@ public partial class SettingsWindow : Window
         RebuildPreview();
     }
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        // Windows 11: real acrylic glass → make the WPF background transparent so
+        // the backdrop shows. Windows 10: keep the solid dark fallback from XAML.
+        if (WindowBackdrop.Apply(hwnd))
+            Background = Brushes.Transparent;
+    }
+
     private void LoadFromConfig()
     {
         _suspend = true;
@@ -95,6 +107,7 @@ public partial class SettingsWindow : Window
         GapSlider.Value = s.SegmentGap;
 
         AcrylicCheck.IsChecked = s.UseAcrylicBlur;
+        AnimateCheck.IsChecked = s.Animate;
         TintOpacitySlider.Value = s.TintOpacity;
         SegmentOpacitySlider.Value = s.SegmentOpacity;
         TintColorBox.Text = s.TintColor;
@@ -167,6 +180,12 @@ public partial class SettingsWindow : Window
         if (_suspend) return;
         _working.Style.UseAcrylicBlur = AcrylicCheck.IsChecked == true;
         RebuildPreview();
+    }
+
+    private void Animate_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suspend) return;
+        _working.Style.Animate = AnimateCheck.IsChecked == true;
     }
 
     private void Color_Changed(object sender, TextChangedEventArgs e)

@@ -56,6 +56,9 @@ public sealed class StyleConfig
     /// <summary>Use acrylic blur behind the bubble. Falls back to a flat tint if off.</summary>
     public bool UseAcrylicBlur { get; set; } = true;
 
+    /// <summary>Play a short scale + fade animation when the bubble opens.</summary>
+    public bool Animate { get; set; } = true;
+
     // ---- Layout (device-independent pixels) ----
     /// <summary>Outer radius of the ring.</summary>
     public double OuterRadius { get; set; } = 200;

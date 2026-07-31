@@ -30,8 +30,11 @@ Rechtsklik (of dubbelklik) op het tray-icoon → **Instellingen**:
 - **Layout** — buiten-/binnenradius, start-hoek en de ruimte tussen de vakjes.
 - **Segmenten** — vakjes toevoegen, bewerken, verwijderen en herordenen. Per
   segment: naam, actie, doel, argumenten en een optioneel icoon.
-- **Stijl** — glas-vervaging (acrylic) aan/uit, transparantie, en de glas-,
-  accent- en tekstkleur.
+- **Stijl** — glas-vervaging (acrylic) aan/uit, **animatie bij openen**,
+  transparantie, en de glas-, accent- en tekstkleur.
+
+Het instellingenvenster zelf heeft dezelfde glas-look: op **Windows 11** met een
+echte acrylic-backdrop, op **Windows 10** een egaal donker thema.
 
 Alles heeft een **live preview**. Instellingen worden bewaard in
 `%APPDATA%\CursorBubble\config.json`.

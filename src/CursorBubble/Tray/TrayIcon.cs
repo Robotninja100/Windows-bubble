@@ -69,8 +69,28 @@ public sealed class TrayIcon : IDisposable
         _notifyIcon.ShowBalloonTip(4000);
     }
 
-    /// <summary>Draw a small glassy bubble icon at runtime (no asset file needed).</summary>
+    /// <summary>Load the bundled app icon; fall back to a runtime-drawn one.</summary>
     private static Icon CreateIcon()
+    {
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Assets/app.ico");
+            System.Windows.Resources.StreamResourceInfo? info = System.Windows.Application.GetResourceStream(uri);
+            if (info is not null)
+            {
+                using Stream stream = info.Stream;
+                return new Icon(stream, new Size(32, 32));
+            }
+        }
+        catch
+        {
+            // fall through to the drawn icon
+        }
+        return DrawFallbackIcon();
+    }
+
+    /// <summary>Draw a small glassy bubble icon at runtime (used if the asset is missing).</summary>
+    private static Icon DrawFallbackIcon()
     {
         using var bmp = new Bitmap(32, 32);
         using (Graphics g = Graphics.FromImage(bmp))
