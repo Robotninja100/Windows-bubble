@@ -254,7 +254,7 @@ public sealed class RadialMenuControl : Canvas
         stack.Children.Add(crossHost);
         stack.Children.Add(new TextBlock
         {
-            Text = "Annuleren",
+            Text = "Cancel",
             Foreground = _labelBrush,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
@@ -373,7 +373,7 @@ public sealed class RadialMenuControl : Canvas
 
         var hint = new TextBlock
         {
-            Text = "Geen shortcuts\ningesteld",
+            Text = "No shortcuts\nconfigured",
             Foreground = _labelBrush,
             FontSize = 13,
             TextAlignment = TextAlignment.Center,

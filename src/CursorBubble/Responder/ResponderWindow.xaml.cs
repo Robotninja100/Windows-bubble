@@ -37,7 +37,7 @@ public partial class ResponderWindow : Window
         object? previous = SessionsList.SelectedItem is InboxRecord r ? r.SessionId : null;
 
         SessionsList.ItemsSource = items;
-        Title = items.Count > 0 ? $"Claude Code — {items.Count} openstaand" : "Claude Code";
+        Title = items.Count > 0 ? $"Claude Code — {items.Count} pending" : "Claude Code";
 
         if (items.Count == 0)
         {
@@ -67,7 +67,7 @@ public partial class ResponderWindow : Window
 
         ProjectHeader.Text = rec.DisplayProject;
         MetaText.Text = $"{rec.StateText} · {rec.Cwd} · {rec.WhenLocal}";
-        MessageBox.Text = string.IsNullOrWhiteSpace(rec.Message) ? "(geen tekst meegegeven)" : rec.Message;
+        MessageBox.Text = string.IsNullOrWhiteSpace(rec.Message) ? "(no text provided)" : rec.Message;
         StatusText.Text = "";
         ReplyBox.Clear();
         ReplyBox.Focus();
@@ -91,7 +91,7 @@ public partial class ResponderWindow : Window
         string text = ReplyBox.Text;
         if (string.IsNullOrWhiteSpace(text))
         {
-            StatusText.Text = "Typ eerst een antwoord.";
+            StatusText.Text = "Type a reply first.";
             return;
         }
 
@@ -104,12 +104,12 @@ public partial class ResponderWindow : Window
         }
         catch
         {
-            StatusText.Text = "Kon het klembord niet gebruiken.";
+            StatusText.Text = "Could not use the clipboard.";
             return;
         }
 
         SendBtn.IsEnabled = false;
-        StatusText.Text = "Bezig met versturen…";
+        StatusText.Text = "Sending…";
 
         // Step aside so focus can move to the terminal. Awaiting keeps the UI
         // responsive while the (slow) focus + paste happens on a worker thread.
@@ -144,7 +144,7 @@ public partial class ResponderWindow : Window
 
             Show();
             Activate();
-            StatusText.Text = "Antwoord verstuurd.";
+            StatusText.Text = "Reply sent.";
         }
         else
         {
@@ -152,8 +152,8 @@ public partial class ResponderWindow : Window
             // the clipboard so the user can paste it themselves.
             Show();
             Activate();
-            StatusText.Text = "Kon het venster van deze sessie niet activeren; er is niets getypt. " +
-                              "Je antwoord staat op het klembord — plak het zelf met Ctrl+V in de sessie.";
+            StatusText.Text = "Could not bring this session's window to the front, so nothing was typed. " +
+                              "Your reply is on the clipboard — paste it into the session yourself with Ctrl+V.";
         }
     }
 

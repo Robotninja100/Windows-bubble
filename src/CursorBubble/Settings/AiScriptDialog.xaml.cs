@@ -39,20 +39,20 @@ public partial class AiScriptDialog : Window
         string description = DescriptionBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(description))
         {
-            StatusText.Text = "Beschrijf eerst wat het script moet doen.";
+            StatusText.Text = "Describe what the script should do first.";
             return;
         }
 
         GenerateBtn.IsEnabled = false;
         UseBtn.IsEnabled = false;
-        StatusText.Text = "Bezig met genereren…";
+        StatusText.Text = "Generating…";
 
         try
         {
             GeneratedScript result = await ScriptGenerator.GenerateAsync(_apiKey, _model, description);
 
             ExplanationText.Text = string.IsNullOrWhiteSpace(result.Explanation)
-                ? "(geen uitleg gegeven)"
+                ? "(no explanation given)"
                 : result.Explanation;
 
             if (!string.IsNullOrWhiteSpace(result.Warnings))
@@ -69,7 +69,7 @@ public partial class AiScriptDialog : Window
             ResultInfo.Visibility = Visibility.Visible;
             ScriptArea.Visibility = Visibility.Visible;
             UseBtn.IsEnabled = true;
-            StatusText.Text = "Klaar — controleer het script hieronder.";
+            StatusText.Text = "Done — review the script below.";
         }
         catch (Exception ex)
         {
@@ -86,7 +86,7 @@ public partial class AiScriptDialog : Window
         string script = ScriptBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(script))
         {
-            StatusText.Text = "Er is geen script om te gebruiken.";
+            StatusText.Text = "There is no script to use.";
             return;
         }
         ResultScript = script;

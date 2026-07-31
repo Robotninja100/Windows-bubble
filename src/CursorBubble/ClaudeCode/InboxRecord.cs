@@ -48,10 +48,10 @@ public sealed class InboxRecord
     // ---- display helpers (not persisted) ----
 
     [JsonIgnore]
-    public string StateText => State == SessionState.Waiting ? "Wacht op je" : "Klaar";
+    public string StateText => State == SessionState.Waiting ? "Waiting for you" : "Finished";
 
     [JsonIgnore]
-    public string DisplayProject => string.IsNullOrWhiteSpace(ProjectName) ? "(onbekend project)" : ProjectName;
+    public string DisplayProject => string.IsNullOrWhiteSpace(ProjectName) ? "(unknown project)" : ProjectName;
 
     [JsonIgnore]
     public string Snippet

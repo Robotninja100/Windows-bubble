@@ -77,7 +77,7 @@ public partial class App : Application
         {
             // Without the hook the gesture can never fire, but the tray icon and
             // settings still work — tell the user instead of crashing on startup.
-            _tray.ShowError("De muisgebaren konden niet worden geactiveerd: " + ex.Message);
+            _tray.ShowError("Could not enable the mouse gesture: " + ex.Message);
         }
 
         StartInboxWatcher();
@@ -159,8 +159,8 @@ public partial class App : Application
 
         Dispatcher.InvokeAsync(() =>
         {
-            string what = record.State == SessionState.Waiting ? "wacht op je" : "is klaar";
-            string project = string.IsNullOrWhiteSpace(record.ProjectName) ? "een sessie" : record.ProjectName;
+            string what = record.State == SessionState.Waiting ? "is waiting for you" : "has finished";
+            string project = string.IsNullOrWhiteSpace(record.ProjectName) ? "A session" : record.ProjectName;
             _tray?.ShowInfo("Claude Code", $"{project} {what}.");
             _responder?.ReloadInbox();
         });

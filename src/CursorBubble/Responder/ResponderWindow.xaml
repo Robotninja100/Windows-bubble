@@ -85,7 +85,7 @@
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                 <Button x:Name="RefreshBtn" Content="⟳" DockPanel.Dock="Right" Padding="10,4"
                         Margin="0" Click="RefreshBtn_Click" />
-                <TextBlock Text="Openstaande sessies" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="Pending sessions" FontSize="15" FontWeight="SemiBold"
                            VerticalAlignment="Center" />
             </DockPanel>
             <ListBox x:Name="SessionsList" Background="#22101317" BorderBrush="{StaticResource CardBorder}"
@@ -110,7 +110,7 @@
 
         <!-- Right: detail + reply -->
         <Grid Grid.Column="1">
-            <TextBlock x:Name="EmptyHint" Text="Geen openstaande sessies." Foreground="{StaticResource SubText}"
+            <TextBlock x:Name="EmptyHint" Text="No pending sessions." Foreground="{StaticResource SubText}"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
             <DockPanel x:Name="DetailPanel" Visibility="Collapsed">
@@ -125,7 +125,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Jouw antwoord" Foreground="{StaticResource SubText}"
+                    <TextBlock Grid.Row="0" Text="Your reply" Foreground="{StaticResource SubText}"
                                FontSize="12" Margin="0,0,0,3" />
                     <TextBox Grid.Row="1" x:Name="ReplyBox" Height="72" TextWrapping="Wrap"
                              AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
@@ -133,8 +133,8 @@
                         <TextBlock x:Name="StatusText" Foreground="{StaticResource SubText}"
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                            <Button x:Name="DismissBtn" Content="Verwijderen" Click="DismissBtn_Click" Margin="0" />
-                            <Button x:Name="SendBtn" Content="Verstuur ↵" Click="SendBtn_Click"
+                            <Button x:Name="DismissBtn" Content="Dismiss" Click="DismissBtn_Click" Margin="0" />
+                            <Button x:Name="SendBtn" Content="Send ↵" Click="SendBtn_Click"
                                     Background="{StaticResource Accent}" Foreground="White" />
                         </StackPanel>
                     </DockPanel>

@@ -38,9 +38,9 @@ public static class ScriptGenerator
         string apiKey, string model, string description, CancellationToken cancel = default)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("Er is nog geen API-sleutel ingesteld (Instellingen → AI).");
+            throw new InvalidOperationException("No API key has been set yet (Settings → AI).");
         if (string.IsNullOrWhiteSpace(description))
-            throw new InvalidOperationException("Beschrijf eerst wat het script moet doen.");
+            throw new InvalidOperationException("Describe what the script should do first.");
 
         var payload = new
         {
@@ -65,7 +65,7 @@ public static class ScriptGenerator
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException("Kon de Claude-API niet bereiken: " + ex.Message, ex);
+            throw new InvalidOperationException("Could not reach the Claude API: " + ex.Message, ex);
         }
 
         string body = await response.Content.ReadAsStringAsync(cancel);
@@ -85,7 +85,7 @@ public static class ScriptGenerator
             stop.GetString() == "refusal")
         {
             throw new InvalidOperationException(
-                "Het model heeft dit verzoek geweigerd. Formuleer het anders of pas het doel aan.");
+                "The model declined this request. Rephrase it or adjust what you are asking for.");
         }
 
         // Find the first text content block (thinking blocks may precede it).
@@ -104,7 +104,7 @@ public static class ScriptGenerator
         }
 
         if (string.IsNullOrWhiteSpace(text))
-            throw new InvalidOperationException("Onverwacht antwoord van de API (geen tekst gevonden).");
+            throw new InvalidOperationException("Unexpected response from the API (no text found).");
 
         return ParseGeneratedJson(text!);
     }
@@ -115,7 +115,7 @@ public static class ScriptGenerator
         int start = text.IndexOf('{');
         int end = text.LastIndexOf('}');
         if (start < 0 || end <= start)
-            throw new InvalidOperationException("Kon het gegenereerde script niet lezen (geen JSON gevonden).");
+            throw new InvalidOperationException("Could not read the generated script (no JSON found).");
 
         string json = text.Substring(start, end - start + 1);
         try
@@ -126,12 +126,12 @@ public static class ScriptGenerator
             string explanation = r.TryGetProperty("explanation", out var e) ? e.GetString() ?? "" : "";
             string warnings = r.TryGetProperty("warnings", out var w) ? w.GetString() ?? "" : "";
             if (string.IsNullOrWhiteSpace(script))
-                throw new InvalidOperationException("Het model gaf geen script terug.");
+                throw new InvalidOperationException("The model returned no script.");
             return new GeneratedScript(script.Trim(), explanation.Trim(), warnings.Trim());
         }
         catch (JsonException)
         {
-            throw new InvalidOperationException("Kon het gegenereerde script niet verwerken.");
+            throw new InvalidOperationException("Could not parse the generated script.");
         }
     }
 
@@ -152,9 +152,9 @@ public static class ScriptGenerator
 
         return (int)response.StatusCode switch
         {
-            401 => "Ongeldige API-sleutel. Controleer de sleutel in Instellingen → AI.",
-            429 => "Te veel verzoeken of tegoed op. Probeer het later opnieuw.",
-            _ => $"API-fout ({(int)response.StatusCode}): {message}"
+            401 => "Invalid API key. Check the key under Settings → AI.",
+            429 => "Too many requests, or out of credit. Try again later.",
+            _ => $"API error ({(int)response.StatusCode}): {message}"
         };
     }
 }

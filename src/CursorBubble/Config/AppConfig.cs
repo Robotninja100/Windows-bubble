@@ -118,33 +118,33 @@ public sealed class AppConfig
         var cfg = new AppConfig();
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Documenten\nopenen", Glyph = "",
+            Label = "Open\nDocuments", Glyph = "",
             Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Webbrowser\nstarten", Glyph = "",
+            Label = "Open\nBrowser", Glyph = "",
             Action = ActionType.OpenPath, Target = "https://www.google.com"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Rekenmachine", Glyph = "",
+            Label = "Calculator", Glyph = "",
             Action = ActionType.LaunchProgram, Target = "calc.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Draai Back-up\nScript", Glyph = "",
+            Label = "Run Backup\nScript", Glyph = "",
             Action = ActionType.RunScript,
-            Target = "powershell -NoProfile -Command \"Write-Host 'Vervang dit door je eigen back-up script'\""
+            Target = "powershell -NoProfile -Command \"Write-Host 'Replace this with your own backup script'\""
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "PowerShell\nopenen", Glyph = "",
+            Label = "Open\nPowerShell", Glyph = "",
             Action = ActionType.LaunchProgram, Target = "powershell.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Instellingen\nopenen", Glyph = "",
+            Label = "Open\nSettings", Glyph = "",
             Action = ActionType.OpenPath, Target = "ms-settings:"
         });
         cfg.Segments.Add(new SegmentConfig

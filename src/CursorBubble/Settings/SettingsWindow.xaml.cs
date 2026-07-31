@@ -28,29 +28,29 @@ public partial class SettingsWindow : Window
 
     private static readonly AiModelOption[] AiModels =
     {
-        new("Claude Opus 5 — beste kwaliteit", "claude-opus-5"),
-        new("Claude Sonnet 5 — sneller & goedkoper", "claude-sonnet-5"),
-        new("Claude Haiku 4.5 — goedkoopst", "claude-haiku-4-5"),
+        new("Claude Opus 5 — best quality", "claude-opus-5"),
+        new("Claude Sonnet 5 — faster & cheaper", "claude-sonnet-5"),
+        new("Claude Haiku 4.5 — cheapest", "claude-haiku-4-5"),
     };
 
     // Curated icons from the Segoe Fluent Icons / Segoe MDL2 Assets system font.
     private static readonly IconOption[] IconOptions =
     {
-        new("Geen", ""),
-        new("Map", ""),
-        new("Wereld / Browser", ""),
-        new("Instellingen", ""),
+        new("None", ""),
+        new("Folder", ""),
+        new("Globe / Browser", ""),
+        new("Settings", ""),
         new("Document", ""),
-        new("Opslaan", ""),
+        new("Save", ""),
         new("Mail", ""),
-        new("Agenda", ""),
-        new("Afspelen", ""),
+        new("Calendar", ""),
+        new("Play", ""),
         new("Camera", ""),
-        new("Foto", ""),
-        new("Muziek", ""),
+        new("Photo", ""),
+        new("Music", ""),
         new("Terminal", ""),
-        new("Bericht / Chat", ""),
-        new("Rekenmachine", ""),
+        new("Message / Chat", ""),
+        new("Calculator", ""),
         new("Home", ""),
     };
 
@@ -72,14 +72,14 @@ public partial class SettingsWindow : Window
         _working = Clone(current);
 
         PreviewBox.Child = _preview;
-        ConfigPathText.Text = "Instellingen worden bewaard in: " + ConfigStore.ConfigPath;
+        ConfigPathText.Text = "Settings are stored in: " + ConfigStore.ConfigPath;
 
         ActionBox.ItemsSource = new[]
         {
-            new ActionOption("Openen (bestand / map / URL)", ActionType.OpenPath),
-            new ActionOption("Programma starten", ActionType.LaunchProgram),
-            new ActionOption("Script / commando uitvoeren", ActionType.RunScript),
-            new ActionOption("Claude Code inbox openen", ActionType.ClaudeInbox),
+            new ActionOption("Open (file / folder / URL)", ActionType.OpenPath),
+            new ActionOption("Launch program", ActionType.LaunchProgram),
+            new ActionOption("Run script / command", ActionType.RunScript),
+            new ActionOption("Open Claude Code inbox", ActionType.ClaudeInbox),
         };
         ActionBox.DisplayMemberPath = nameof(ActionOption.Display);
         ActionBox.SelectedValuePath = nameof(ActionOption.Value);
@@ -154,24 +154,24 @@ public partial class SettingsWindow : Window
 
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PanelAlgemeen is null)
+        if (PanelGeneral is null)
             return; // during initial template load
 
-        PanelAlgemeen.Visibility = Visibility.Collapsed;
+        PanelGeneral.Visibility = Visibility.Collapsed;
         PanelLayout.Visibility = Visibility.Collapsed;
-        PanelSegmenten.Visibility = Visibility.Collapsed;
-        PanelStijl.Visibility = Visibility.Collapsed;
+        PanelSegments.Visibility = Visibility.Collapsed;
+        PanelStyle.Visibility = Visibility.Collapsed;
         PanelAi.Visibility = Visibility.Collapsed;
         PanelClaude.Visibility = Visibility.Collapsed;
 
         switch (NavList.SelectedIndex)
         {
             case 1: PanelLayout.Visibility = Visibility.Visible; break;
-            case 2: PanelSegmenten.Visibility = Visibility.Visible; break;
-            case 3: PanelStijl.Visibility = Visibility.Visible; break;
+            case 2: PanelSegments.Visibility = Visibility.Visible; break;
+            case 3: PanelStyle.Visibility = Visibility.Visible; break;
             case 4: PanelAi.Visibility = Visibility.Visible; break;
             case 5: PanelClaude.Visibility = Visibility.Visible; UpdateClaudeStatus(); break;
-            default: PanelAlgemeen.Visibility = Visibility.Visible; break;
+            default: PanelGeneral.Visibility = Visibility.Visible; break;
         }
     }
 
@@ -336,14 +336,14 @@ public partial class SettingsWindow : Window
         SegmentConfig? seg = Selected;
         if (seg is null)
         {
-            MessageBox.Show(this, "Kies eerst een segment (of voeg er een toe).", "CursorBubble");
+            MessageBox.Show(this, "Select a segment first (or add one).", "CursorBubble");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_working.AiApiKey))
         {
             MessageBox.Show(this,
-                "Stel eerst je Anthropic API-sleutel in bij Instellingen → AI.",
+                "Set your Anthropic API key first, under Settings → AI.",
                 "CursorBubble");
             NavList.SelectedIndex = 4;
             return;
@@ -367,7 +367,7 @@ public partial class SettingsWindow : Window
 
     private void AddBtn_Click(object sender, RoutedEventArgs e)
     {
-        var seg = new SegmentConfig { Label = "Nieuw", Action = ActionType.OpenPath, Target = "" };
+        var seg = new SegmentConfig { Label = "New", Action = ActionType.OpenPath, Target = "" };
         _working.Segments.Add(seg);
         SegmentsList.SelectedItem = seg;
         RebuildPreview();
@@ -401,7 +401,7 @@ public partial class SettingsWindow : Window
 
     private void BrowseTargetBtn_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog { Title = "Kies een programma of bestand" };
+        var dlg = new OpenFileDialog { Title = "Choose a program or file" };
         if (dlg.ShowDialog(this) == true)
             TargetBox.Text = dlg.FileName;
     }
@@ -410,8 +410,8 @@ public partial class SettingsWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Kies een icoon",
-            Filter = "Afbeeldingen (*.png;*.ico;*.jpg)|*.png;*.ico;*.jpg|Alle bestanden (*.*)|*.*"
+            Title = "Choose an icon",
+            Filter = "Images (*.png;*.ico;*.jpg)|*.png;*.ico;*.jpg|All files (*.*)|*.*"
         };
         if (dlg.ShowDialog(this) == true)
             IconBox.Text = dlg.FileName;
@@ -423,8 +423,8 @@ public partial class SettingsWindow : Window
     {
         bool linked = HookInstaller.IsInstalled();
         ClaudeStatusText.Text = linked
-            ? "Status: gekoppeld. Nieuwe (of herstarte) Claude Code-sessies melden zich in de bubbel."
-            : "Status: niet gekoppeld.";
+            ? "Status: linked. New (or restarted) Claude Code sessions will show up in the bubble."
+            : "Status: not linked.";
         LinkClaudeBtn.IsEnabled = !linked;
         UnlinkClaudeBtn.IsEnabled = linked;
     }
@@ -434,11 +434,11 @@ public partial class SettingsWindow : Window
         try
         {
             HookInstaller.Install();
-            ClaudeStatusText.Text = "Gekoppeld! Herstart lopende Claude Code-sessies zodat de hooks actief worden.";
+            ClaudeStatusText.Text = "Linked! Restart running Claude Code sessions so the hooks take effect.";
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Koppelen mislukt: " + ex.Message;
+            ClaudeStatusText.Text = "Linking failed: " + ex.Message;
         }
         UpdateClaudeStatus();
     }
@@ -451,7 +451,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Ontkoppelen mislukt: " + ex.Message;
+            ClaudeStatusText.Text = "Unlinking failed: " + ex.Message;
         }
         UpdateClaudeStatus();
     }
