@@ -114,6 +114,15 @@ publishes a **self-contained `CursorBubble.exe`** (no .NET install needed):
 GitHub → **Actions** tab → the topmost (green) **Build** run → **Artifacts** at
 the bottom → download **CursorBubble** and unzip.
 
+## Something went wrong
+
+CursorBubble writes a log to `%APPDATA%\CursorBubble\logs\`, one file per day,
+kept for a week. Startup, failed actions and any unexpected error land there. If
+you report a problem, that file is the useful thing to attach.
+
+An unexpected error while the app is running is logged and shown as a tray
+notification rather than taking the app down.
+
 ## Building and running
 
 > Requires **Windows 10/11** and the **.NET 8 SDK** (WPF only builds on Windows).
@@ -121,6 +130,9 @@ the bottom → download **CursorBubble** and unzip.
 ```powershell
 # In the folder containing CursorBubble.sln
 dotnet run --project src/CursorBubble
+
+# Run the tests
+dotnet test
 ```
 
 To produce a standalone `.exe`:
@@ -159,6 +171,24 @@ The `.exe` then lives in
   release (needed to detect the gesture).
 - Right-dragging (dragging with the right button held) is not passed through.
 
+### Cutting a release
+
+Tagging a commit builds a versioned exe, attaches a SHA-256 checksum and opens a
+draft GitHub release:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The executable is **not code-signed**, so Windows SmartScreen warns on first run
+(*More info* → *Run anyway*). Signing needs a certificate, which is the one thing
+that cannot be solved in the repository.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
 ## Project layout
 
 ```
@@ -173,4 +203,6 @@ src/CursorBubble/
   Config/                  model + JSON storage
   Actions/                 running actions
   Tray/                    system tray icon + autostart
+  Diagnostics/             file log
+tests/CursorBubble.Tests/  unit tests for the logic that has no UI in it
 ```
