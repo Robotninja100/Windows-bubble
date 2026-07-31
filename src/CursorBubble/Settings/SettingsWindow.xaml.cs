@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Ai;
 using CursorBubble.Config;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
@@ -21,6 +22,15 @@ public partial class SettingsWindow : Window
     private sealed record ActionOption(string Display, ActionType Value);
 
     private sealed record IconOption(string Name, string Glyph);
+
+    private sealed record AiModelOption(string Display, string Id);
+
+    private static readonly AiModelOption[] AiModels =
+    {
+        new("Claude Opus 5 — beste kwaliteit", "claude-opus-5"),
+        new("Claude Sonnet 5 — sneller & goedkoper", "claude-sonnet-5"),
+        new("Claude Haiku 4.5 — goedkoopst", "claude-haiku-4-5"),
+    };
 
     // Curated icons from the Segoe Fluent Icons / Segoe MDL2 Assets system font.
     private static readonly IconOption[] IconOptions =
@@ -73,6 +83,10 @@ public partial class SettingsWindow : Window
 
         IconGlyphBox.ItemsSource = IconOptions;
 
+        AiModelBox.ItemsSource = AiModels;
+        AiModelBox.DisplayMemberPath = nameof(AiModelOption.Display);
+        AiModelBox.SelectedValuePath = nameof(AiModelOption.Id);
+
         SegmentsList.ItemsSource = _working.Segments;
 
         LoadFromConfig();
@@ -114,6 +128,9 @@ public partial class SettingsWindow : Window
         HighlightColorBox.Text = s.HighlightColor;
         LabelColorBox.Text = s.LabelColor;
 
+        AiApiKeyBox.Password = _working.AiApiKey;
+        AiModelBox.SelectedValue = _working.AiModel;
+
         _suspend = false;
 
         UpdateValueLabels();
@@ -141,12 +158,14 @@ public partial class SettingsWindow : Window
         PanelLayout.Visibility = Visibility.Collapsed;
         PanelSegmenten.Visibility = Visibility.Collapsed;
         PanelStijl.Visibility = Visibility.Collapsed;
+        PanelAi.Visibility = Visibility.Collapsed;
 
         switch (NavList.SelectedIndex)
         {
             case 1: PanelLayout.Visibility = Visibility.Visible; break;
             case 2: PanelSegmenten.Visibility = Visibility.Visible; break;
             case 3: PanelStijl.Visibility = Visibility.Visible; break;
+            case 4: PanelAi.Visibility = Visibility.Visible; break;
             default: PanelAlgemeen.Visibility = Visibility.Visible; break;
         }
     }
@@ -288,6 +307,55 @@ public partial class SettingsWindow : Window
         {
             seg.Glyph = string.IsNullOrEmpty(opt.Glyph) ? null : opt.Glyph;
             IconPreview.Text = opt.Glyph;
+            RebuildPreview();
+        }
+    }
+
+    // ---- AI script generation ----------------------------------------------
+
+    private void AiApiKey_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suspend) return;
+        _working.AiApiKey = AiApiKeyBox.Password;
+    }
+
+    private void AiModel_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suspend) return;
+        if (AiModelBox.SelectedValue is string id)
+            _working.AiModel = id;
+    }
+
+    private void AiGenerateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        SegmentConfig? seg = Selected;
+        if (seg is null)
+        {
+            MessageBox.Show(this, "Kies eerst een segment (of voeg er een toe).", "CursorBubble");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_working.AiApiKey))
+        {
+            MessageBox.Show(this,
+                "Stel eerst je Anthropic API-sleutel in bij Instellingen → AI.",
+                "CursorBubble");
+            NavList.SelectedIndex = 4;
+            return;
+        }
+
+        var dialog = new AiScriptDialog(_working.AiApiKey, _working.AiModel) { Owner = this };
+        if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResultScript))
+        {
+            string name = string.IsNullOrWhiteSpace(seg.Label) ? "script" : seg.Label.Replace("\n", " ");
+            string path = ScriptStore.Save(name, dialog.ResultScript!);
+
+            seg.Action = ActionType.RunScript;
+            seg.Target = path;
+            seg.Arguments = null;
+
+            LoadSegmentDetail();      // reflect the new target/action in the fields
+            SegmentsList.Items.Refresh();
             RebuildPreview();
         }
     }

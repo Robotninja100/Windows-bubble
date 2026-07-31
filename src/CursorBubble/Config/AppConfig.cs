@@ -86,6 +86,15 @@ public sealed class AppConfig
     public bool StartWithWindows { get; set; }
 
     /// <summary>
+    /// Anthropic API key for the "Generate with AI" script feature. Stored
+    /// locally in config.json (plain text) — treat it like any other secret.
+    /// </summary>
+    public string AiApiKey { get; set; } = "";
+
+    /// <summary>Claude model used to generate scripts.</summary>
+    public string AiModel { get; set; } = "claude-opus-5";
+
+    /// <summary>
     /// A sensible starter configuration so the bubble is useful on first run.
     /// </summary>
     public static AppConfig CreateDefault()

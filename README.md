@@ -49,6 +49,24 @@ Alles heeft een **live preview**. Instellingen worden bewaard in
 
 `%VAR%`-omgevingsvariabelen in het doel worden automatisch uitgebreid.
 
+### Script maken met AI
+
+In plaats van zelf een script te schrijven kun je het laten genereren:
+
+1. Vul je **Anthropic API-sleutel** in bij **Instellingen → AI** (aanmaken op
+   console.anthropic.com). Kies eventueel een goedkoper model.
+2. Ga naar **Segmenten**, kies een vakje en klik **✨ Genereer script met AI…**.
+3. Beschrijf in gewone taal wat het script moet doen (bijv. *"maak een back-up
+   van mijn documenten naar D:\Backups"*).
+4. Claude schrijft een PowerShell-script. **Lees het door**, en klik dan
+   **Gebruiken** — het wordt opgeslagen in
+   `%APPDATA%\CursorBubble\scripts\` en aan het vakje gekoppeld.
+
+Het script wordt nooit automatisch uitgevoerd; het draait pas als je dat vakje
+in de bubbel kiest. De API-sleutel wordt lokaal in `config.json` bewaard (platte
+tekst) — deel je configbestand dus niet. Elke generatie kost een kleine
+hoeveelheid API-tegoed.
+
 ## Bouwen en draaien
 
 > Vereist **Windows 10/11** en de **.NET 8 SDK** (WPF bouwt alleen op Windows).
@@ -97,7 +115,8 @@ src/CursorBubble/
   App.xaml(.cs)            start, tray + hook
   Native/                  P/Invoke, muishook + gebaar, blur-helper
   Overlay/                 transparant venster + radiale glas-tekening
-  Settings/                instellingenvenster met live preview
+  Settings/                instellingenvenster met live preview + AI-dialoog
+  Ai/                      scriptgeneratie via de Claude-API + opslag
   Config/                  model + JSON-opslag
   Actions/                 acties uitvoeren
   Tray/                    systeemvak-icoon + autostart

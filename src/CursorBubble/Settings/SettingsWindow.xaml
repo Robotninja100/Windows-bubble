@@ -110,6 +110,7 @@
                     <ListBoxItem Content="Layout" Padding="16,10" />
                     <ListBoxItem Content="Segmenten" Padding="16,10" />
                     <ListBoxItem Content="Stijl" Padding="16,10" />
+                    <ListBoxItem Content="AI" Padding="16,10" />
                 </ListBox>
             </StackPanel>
         </Border>
@@ -241,6 +242,8 @@
                                     Click="BrowseTargetBtn_Click" />
                             <TextBox x:Name="TargetBox" TextChanged="Detail_Changed" />
                         </DockPanel>
+                        <Button x:Name="AiGenerateBtn" Content="✨ Genereer script met AI…"
+                                HorizontalAlignment="Left" Margin="0,6,0,0" Click="AiGenerateBtn_Click" />
 
                         <TextBlock Text="Argumenten (optioneel)" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="ArgumentsBox" TextChanged="Detail_Changed" />
@@ -309,6 +312,29 @@
                             </DockPanel>
                         </StackPanel>
                     </Grid>
+                </StackPanel>
+
+                <!-- AI -->
+                <StackPanel x:Name="PanelAi" Visibility="Collapsed">
+                    <TextBlock Text="AI-scriptgenerator" Style="{StaticResource Heading}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}" Margin="0,0,0,10">
+                        Laat Claude een PowerShell-script voor je schrijven op basis van een beschrijving.
+                        Je hebt hiervoor een eigen Anthropic API-sleutel nodig. Het gegenereerde script
+                        wordt altijd eerst getoond zodat je het kunt controleren voordat het wordt opgeslagen.
+                    </TextBlock>
+
+                    <TextBlock Text="API-sleutel" Style="{StaticResource FieldLabel}" />
+                    <PasswordBox x:Name="AiApiKeyBox" Padding="6,4" Background="#2A0E1116"
+                                 Foreground="{StaticResource PanelText}" BorderBrush="{StaticResource CardBorder}"
+                                 PasswordChanged="AiApiKey_Changed" />
+
+                    <TextBlock Text="Model" Style="{StaticResource FieldLabel}" />
+                    <ComboBox x:Name="AiModelBox" SelectionChanged="AiModel_Changed" />
+
+                    <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
+                        Een sleutel maak je aan op console.anthropic.com. De sleutel wordt lokaal in
+                        config.json bewaard (platte tekst) — deel je configbestand dus niet.
+                    </TextBlock>
                 </StackPanel>
             </Grid>
 
