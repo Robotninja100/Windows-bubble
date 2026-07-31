@@ -272,7 +272,7 @@
                     <CheckBox x:Name="AcrylicCheck" Content="Glass blur (acrylic)"
                               Margin="0,0,0,6" Checked="Acrylic_Changed" Unchecked="Acrylic_Changed" />
 
-                    <CheckBox x:Name="AnimateCheck" Content="Animate on open"
+                    <CheckBox x:Name="AnimateCheck" Content="Animations (open + hover)"
                               Margin="0,0,0,6" Checked="Animate_Changed" Unchecked="Animate_Changed" />
 
                     <DockPanel>

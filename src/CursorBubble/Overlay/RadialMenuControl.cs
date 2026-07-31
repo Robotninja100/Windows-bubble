@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
@@ -32,10 +33,47 @@ public sealed class RadialMenuControl : Canvas
     /// <summary>Windows system icon font, with a fallback for older Windows 10.</summary>
     internal static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
 
-    private readonly List<Path> _segments = new();
+    // ---- animation tuning ---------------------------------------------------
+    private const double OpenStartScale = 0.30;
+    private const double OpenTotalMs = 320;
+    private const double MaxStaggerMs = 26;
+    private const double StaggerWindowMs = 110;
+    private const double MinPetalMs = 190;
+    private const double HoverScaleFactor = 1.04;
+    private const double HoverInMs = 130;
+    private const double HoverOutMs = 150;
+    private const double ShadowRestOpacity = 0.35;
+    private const double ShadowHoverOpacity = 0.55;
+
+    /// <summary>
+    /// Give each petal its own drop shadow instead of one for the whole ring, so a
+    /// lifted petal can cast a deeper shadow. Costs one effect per petal, and a
+    /// neighbour's shadow now composites over adjacent glass — set false to fall
+    /// back to a single shadow on the control (hover then only scales + brightens).
+    /// </summary>
+    private const bool PerPetalShadow = true;
+
+    /// <summary>One radial segment and everything that has to move with it.</summary>
+    private sealed class Petal
+    {
+        public required Canvas Host { get; init; }
+        public required ScaleTransform HoverScale { get; init; }
+        public required ScaleTransform OpenScale { get; init; }
+        public required RotateTransform OpenTwist { get; init; }
+        public DropShadowEffect? Shadow { get; init; }
+        public Path? Highlight { get; set; }
+    }
+
+    private readonly List<Petal> _petals = new();
 
     /// <summary>Petal outlines, used to clip the desktop blur to the glass itself.</summary>
     private readonly List<Geometry> _blurShapes = new();
+
+    private Canvas? _centerHost;
+    private ScaleTransform? _centerScale;
+
+    /// <summary>Bumped on every open/cancel so a stale Completed callback can be ignored.</summary>
+    private int _openGeneration;
 
     private StyleConfig _style = new();
     private int _count;
@@ -51,6 +89,16 @@ public sealed class RadialMenuControl : Canvas
 
     private int _highlighted = -1;
 
+    /// <summary>
+    /// Whether the open and hover animations actually run. Off by default so the
+    /// settings live preview — which rebuilds on every slider tick — stays static;
+    /// the overlay window turns it on from <see cref="StyleConfig.Animate"/>.
+    /// </summary>
+    public bool EnableAnimations { get; set; }
+
+    /// <summary>Raised once the open animation has fully settled.</summary>
+    public event Action? OpenAnimationCompleted;
+
     /// <summary>Diameter of the control (and the hosting window) in DIPs.</summary>
     public double Diameter => _outer * 2;
 
@@ -63,8 +111,10 @@ public sealed class RadialMenuControl : Canvas
     public void Build(AppConfig config)
     {
         Children.Clear();
-        _segments.Clear();
+        _petals.Clear();
         _blurShapes.Clear();
+        _centerHost = null;
+        _centerScale = null;
         _highlighted = -1;
         Effect = null;
 
@@ -94,7 +144,9 @@ public sealed class RadialMenuControl : Canvas
             glassAlpha *= 0.38;
 
         _segmentBrush = GlassFill(tint, glassAlpha);
-        _highlightBrush = GlassFill(highlight, Math.Min(1.0, glassAlpha + 0.40));
+        // The highlight now stacks over the body rather than replacing it, so it
+        // needs less alpha of its own to land at the same brightness.
+        _highlightBrush = GlassFill(highlight, Math.Min(1.0, glassAlpha + 0.28));
         Brush strokeBrush = RimStroke();
         Brush bleedBrush = EdgeRefraction(glassAlpha, 0.42);
         Brush edgeBrush = EdgeRefraction(glassAlpha, 1.0);
@@ -121,22 +173,36 @@ public sealed class RadialMenuControl : Canvas
             double a0 = _startAngle + i * sweep + halfGap;
             double a1 = _startAngle + (i + 1) * sweep - halfGap;
 
+            double midAngle = (a0 + a1) / 2.0;
             Geometry shape = BuildPetalGeometry(cx, cy, _inner, _outer, a0, a1, _corner);
             _blurShapes.Add(shape);
 
+            // Everything for this segment goes into its own host so the open
+            // unfurl and the hover lift can move it as one piece.
+            Petal petal = CreatePetalHost(PointOnCircle(cx, cy, (_inner + _outer) / 2.0, midAngle));
+            Children.Add(petal.Host);
+
             // 1. The body of the glass: thin, mostly transparent.
-            var body = new Path
+            petal.Host.Children.Add(new Path
             {
                 Data = shape,
                 Fill = _segmentBrush
+            });
+
+            // 1b. The highlight, stacked over the body and faded in on hover so
+            //     the brighten is a cross-fade rather than a hard brush swap.
+            petal.Highlight = new Path
+            {
+                Data = shape,
+                Fill = _highlightBrush,
+                Opacity = 0
             };
-            _segments.Add(body);
-            Children.Add(body);
+            petal.Host.Children.Add(petal.Highlight);
 
             // 2. Refracted edge: a wide stroke clipped to the shape leaves only
             //    its inner half, which is the band of light a thick piece of
             //    glass bends around its rim. Brightest at two opposite edges.
-            Children.Add(new Path
+            petal.Host.Children.Add(new Path
             {
                 Data = shape,
                 Fill = null,
@@ -144,7 +210,7 @@ public sealed class RadialMenuControl : Canvas
                 StrokeThickness = edgeWidth * 2,
                 Clip = shape
             });
-            Children.Add(new Path
+            petal.Host.Children.Add(new Path
             {
                 Data = shape,
                 Fill = null,
@@ -154,14 +220,14 @@ public sealed class RadialMenuControl : Canvas
             });
 
             // 3. Specular gloss across the upper part of each petal.
-            Children.Add(new Path
+            petal.Host.Children.Add(new Path
             {
                 Data = shape,
                 Fill = sheenBrush
             });
 
             // 4. Crisp outline so the glass keeps a defined edge against the desktop.
-            Children.Add(new Path
+            petal.Host.Children.Add(new Path
             {
                 Data = shape,
                 Fill = null,
@@ -170,19 +236,81 @@ public sealed class RadialMenuControl : Canvas
                 StrokeLineJoin = PenLineJoin.Round
             });
 
-            AddSegmentContent(config.Segments[i], cx, cy, (a0 + a1) / 2.0);
+            AddSegmentContent(petal.Host, config.Segments[i], cx, cy, midAngle);
+            _petals.Add(petal);
         }
 
         AddCenterCancel(cx, cy);
 
-        // One soft shadow for the whole ring: each petal picks up its own edge,
-        // which is what gives the glass its lift off the desktop.
-        Effect = new DropShadowEffect
+        // With per-petal shadows each segment carries its own lift; otherwise one
+        // soft shadow for the whole ring, as before.
+        if (!PerPetalShadow)
         {
-            BlurRadius = 18,
-            ShadowDepth = 0,
-            Opacity = 0.35,
-            Color = Colors.Black
+            Effect = new DropShadowEffect
+            {
+                BlurRadius = 18,
+                ShadowDepth = 0,
+                Opacity = ShadowRestOpacity,
+                Color = Colors.Black
+            };
+        }
+    }
+
+    /// <summary>
+    /// Build the container that holds one segment's layers, with the transforms the
+    /// animations drive.
+    ///
+    /// It has to be a <see cref="Canvas"/>: the content panel and the badge position
+    /// themselves with <c>Canvas.Left/Top</c>, which only a Canvas parent honours.
+    /// It is placed at the origin at full size, so every coordinate inside it —
+    /// geometry, clips, the absolutely-mapped gradients — is identical to drawing
+    /// straight onto the control.
+    /// </summary>
+    private Petal CreatePetalHost(Point centroid)
+    {
+        // Order matters: TransformGroup applies Children[0] first, and the hover
+        // lift must be innermost so its centre stays a constant in the petal's own
+        // untransformed space. Outermost, that centre would have to chase the open
+        // animation frame by frame and the two would fight.
+        var hover = new ScaleTransform(1, 1) { CenterX = centroid.X, CenterY = centroid.Y };
+        var openScale = new ScaleTransform(1, 1) { CenterX = _outer, CenterY = _outer };
+        var openTwist = new RotateTransform(0) { CenterX = _outer, CenterY = _outer };
+
+        var transforms = new TransformGroup();
+        transforms.Children.Add(hover);
+        transforms.Children.Add(openScale);
+        transforms.Children.Add(openTwist);
+
+        var host = new Canvas
+        {
+            Width = Diameter,
+            Height = Diameter,
+            IsHitTestVisible = false,
+            RenderTransform = transforms
+        };
+        SetLeft(host, 0);
+        SetTop(host, 0);
+
+        DropShadowEffect? shadow = null;
+        if (PerPetalShadow)
+        {
+            shadow = new DropShadowEffect
+            {
+                BlurRadius = 18,
+                ShadowDepth = 0,
+                Opacity = ShadowRestOpacity,
+                Color = Colors.Black
+            };
+            host.Effect = shadow;
+        }
+
+        return new Petal
+        {
+            Host = host,
+            HoverScale = hover,
+            OpenScale = openScale,
+            OpenTwist = openTwist,
+            Shadow = shadow
         };
     }
 
@@ -266,10 +394,24 @@ public sealed class RadialMenuControl : Canvas
         Size d = stack.DesiredSize;
         SetLeft(stack, cx - d.Width / 2.0);
         SetTop(stack, cy - d.Height / 2.0);
-        Children.Add(stack);
+
+        // The hub of the umbrella: it gets its own host so it can scale up with
+        // the ring instead of sitting at full size while the petals are tiny.
+        _centerScale = new ScaleTransform(1, 1) { CenterX = _outer, CenterY = _outer };
+        _centerHost = new Canvas
+        {
+            Width = Diameter,
+            Height = Diameter,
+            IsHitTestVisible = false,
+            RenderTransform = _centerScale
+        };
+        SetLeft(_centerHost, 0);
+        SetTop(_centerHost, 0);
+        _centerHost.Children.Add(stack);
+        Children.Add(_centerHost);
     }
 
-    private void AddSegmentContent(SegmentConfig segment, double cx, double cy, double midAngle)
+    private void AddSegmentContent(Canvas host, SegmentConfig segment, double cx, double cy, double midAngle)
     {
         double labelRadius = (_inner + _outer) / 2.0;
         Point p = PointOnCircle(cx, cy, labelRadius, midAngle);
@@ -324,26 +466,26 @@ public sealed class RadialMenuControl : Canvas
         Size desired = panel.DesiredSize;
         SetLeft(panel, p.X - desired.Width / 2.0);
         SetTop(panel, p.Y - desired.Height / 2.0);
-        Children.Add(panel);
+        host.Children.Add(panel);
 
         if (segment.Action == ActionType.ClaudeInbox && InboxCount > 0)
-            AddBadge(cx, cy, midAngle, InboxCount);
+            AddBadge(host, cx, cy, midAngle, InboxCount);
     }
 
     /// <summary>Draw a small count badge near the outer edge of a segment.</summary>
-    private void AddBadge(double cx, double cy, double midAngle, int count)
+    private void AddBadge(Canvas host, double cx, double cy, double midAngle, int count)
     {
         Point p = PointOnCircle(cx, cy, _outer - 20, midAngle);
         double size = 24;
 
-        var host = new Grid { Width = size, Height = size };
-        host.Children.Add(new Ellipse
+        var badge = new Grid { Width = size, Height = size };
+        badge.Children.Add(new Ellipse
         {
             Fill = new SolidColorBrush(Color.FromRgb(0xE0, 0x3A, 0x3A)),
             Stroke = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
             StrokeThickness = 1.5
         });
-        host.Children.Add(new TextBlock
+        badge.Children.Add(new TextBlock
         {
             Text = count > 99 ? "99+" : count.ToString(),
             Foreground = Brushes.White,
@@ -353,9 +495,9 @@ public sealed class RadialMenuControl : Canvas
             VerticalAlignment = VerticalAlignment.Center
         });
 
-        SetLeft(host, p.X - size / 2.0);
-        SetTop(host, p.Y - size / 2.0);
-        Children.Add(host);
+        SetLeft(badge, p.X - size / 2.0);
+        SetTop(badge, p.Y - size / 2.0);
+        host.Children.Add(badge);
     }
 
     private void DrawEmptyHint(double cx, double cy, Brush strokeBrush)
@@ -407,16 +549,207 @@ public sealed class RadialMenuControl : Canvas
 
     public void SetHighlight(int index)
     {
+        // UpdateCursor calls this on every mouse move while the gesture is held,
+        // so this early-out is what keeps the animations off the hot path.
         if (index == _highlighted)
             return;
 
-        if (_highlighted >= 0 && _highlighted < _segments.Count)
-            _segments[_highlighted].Fill = _segmentBrush;
+        if (_highlighted >= 0 && _highlighted < _petals.Count)
+            ApplyHighlight(_petals[_highlighted], false);
 
         _highlighted = index;
 
-        if (_highlighted >= 0 && _highlighted < _segments.Count)
-            _segments[_highlighted].Fill = _highlightBrush;
+        if (_highlighted >= 0 && _highlighted < _petals.Count)
+            ApplyHighlight(_petals[_highlighted], true);
+    }
+
+    /// <summary>Lift a petal towards the viewer and brighten it (or settle it back).</summary>
+    private void ApplyHighlight(Petal petal, bool on)
+    {
+        if (!EnableAnimations)
+        {
+            petal.Highlight?.BeginAnimation(OpacityProperty, null);
+            petal.HoverScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            petal.HoverScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            petal.Shadow?.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+
+            if (petal.Highlight is not null)
+                petal.Highlight.Opacity = on ? 1 : 0;
+            petal.HoverScale.ScaleX = petal.HoverScale.ScaleY = 1;
+            if (petal.Shadow is not null)
+                petal.Shadow.Opacity = ShadowRestOpacity;
+            return;
+        }
+
+        double ms = on ? HoverInMs : HoverOutMs;
+
+        // A spring on the way up, a plain settle on the way down.
+        IEasingFunction ease = on
+            ? (IEasingFunction)new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.5 }
+            : new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        // Brighten slightly ahead of the lift so the colour leads the movement.
+        petal.Highlight?.BeginAnimation(OpacityProperty,
+            To(on ? 1 : 0, on ? 120 : 160, new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+
+        double scale = on ? HoverScaleFactor : 1.0;
+        petal.HoverScale.BeginAnimation(ScaleTransform.ScaleXProperty, To(scale, ms, ease));
+        petal.HoverScale.BeginAnimation(ScaleTransform.ScaleYProperty, To(scale, ms, ease));
+
+        // Only the opacity: animating BlurRadius re-rasterizes the blur kernel
+        // every frame, which is by far the most expensive thing here.
+        petal.Shadow?.BeginAnimation(DropShadowEffect.OpacityProperty,
+            To(on ? ShadowHoverOpacity : ShadowRestOpacity, ms, ease));
+    }
+
+    // ---- open animation -----------------------------------------------------
+
+    /// <summary>
+    /// Put every petal into its collapsed start state. This has to happen before
+    /// the window is shown: an animation with a <c>BeginTime</c> renders the
+    /// property's base value during its delay, so without this the later petals
+    /// would flash at full size before their turn came round.
+    /// </summary>
+    public void PrepareOpenAnimation()
+    {
+        _openGeneration++;
+
+        if (_petals.Count == 0)
+            return;
+
+        double twist = OpenTwistAngle();
+
+        foreach (Petal petal in _petals)
+        {
+            ClearOpenClocks(petal);
+            petal.Host.Opacity = 0;
+            petal.OpenScale.ScaleX = petal.OpenScale.ScaleY = OpenStartScale;
+            petal.OpenTwist.Angle = twist;
+        }
+
+        if (_centerHost is not null && _centerScale is not null)
+        {
+            _centerHost.BeginAnimation(OpacityProperty, null);
+            _centerScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            _centerScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            _centerHost.Opacity = 0;
+            _centerScale.ScaleX = _centerScale.ScaleY = 0.6;
+        }
+    }
+
+    /// <summary>Spring the petals open one after another, like an umbrella catching.</summary>
+    public void StartOpenAnimation()
+    {
+        if (_petals.Count == 0)
+        {
+            ResetToRest();
+            OpenAnimationCompleted?.Invoke();
+            return;
+        }
+
+        int generation = _openGeneration;
+        int n = _petals.Count;
+
+        // Keep the whole thing at roughly OpenTotalMs however many segments there are.
+        double stagger = n > 1 ? Math.Min(MaxStaggerMs, StaggerWindowMs / (n - 1)) : 0;
+        double petalMs = Math.Max(MinPetalMs, OpenTotalMs - stagger * (n - 1));
+        double twist = OpenTwistAngle();
+
+        var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.4 };
+        var settle = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var fade = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+
+        // The hub leads; the petals unfurl from it.
+        if (_centerHost is not null && _centerScale is not null)
+        {
+            _centerHost.BeginAnimation(OpacityProperty, From(0, 1, petalMs * 0.55, fade));
+            _centerScale.BeginAnimation(ScaleTransform.ScaleXProperty, From(0.6, 1, petalMs, spring));
+            _centerScale.BeginAnimation(ScaleTransform.ScaleYProperty, From(0.6, 1, petalMs, spring));
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            Petal petal = _petals[i];
+            double begin = i * stagger;
+
+            petal.Host.BeginAnimation(OpacityProperty, From(0, 1, petalMs * 0.55, fade, begin));
+
+            DoubleAnimation scaleX = From(OpenStartScale, 1, petalMs, spring, begin);
+            if (i == n - 1)
+                scaleX.Completed += (_, _) => SettleOpen(generation);
+
+            petal.OpenScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleX);
+            petal.OpenScale.BeginAnimation(ScaleTransform.ScaleYProperty, From(OpenStartScale, 1, petalMs, spring, begin));
+
+            // A second overshooting curve on top of the spring reads wobbly, so
+            // the twist just eases out.
+            petal.OpenTwist.BeginAnimation(RotateTransform.AngleProperty, From(twist, 0, petalMs, settle, begin));
+        }
+    }
+
+    /// <summary>Stop any open animation in flight and leave the bubble fully open.</summary>
+    public void CancelOpenAnimation()
+    {
+        _openGeneration++;
+        ResetToRest();
+    }
+
+    private void SettleOpen(int generation)
+    {
+        if (generation != _openGeneration)
+            return; // a newer open (or a cancel) has already taken over
+
+        ResetToRest();
+        OpenAnimationCompleted?.Invoke();
+    }
+
+    /// <summary>
+    /// Drop the open-animation clocks and write exact rest values. The exactness
+    /// matters: WPF turns ClearType off under a non-identity transform, so the
+    /// composed matrix has to end up exactly identity for the labels to stay crisp.
+    /// </summary>
+    private void ResetToRest()
+    {
+        foreach (Petal petal in _petals)
+        {
+            ClearOpenClocks(petal);
+            petal.Host.Opacity = 1;
+            petal.OpenScale.ScaleX = petal.OpenScale.ScaleY = 1;
+            petal.OpenTwist.Angle = 0;
+        }
+
+        if (_centerHost is not null && _centerScale is not null)
+        {
+            _centerHost.BeginAnimation(OpacityProperty, null);
+            _centerScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            _centerScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            _centerHost.Opacity = 1;
+            _centerScale.ScaleX = _centerScale.ScaleY = 1;
+        }
+    }
+
+    private static void ClearOpenClocks(Petal petal)
+    {
+        petal.Host.BeginAnimation(OpacityProperty, null);
+        petal.OpenScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        petal.OpenScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        petal.OpenTwist.BeginAnimation(RotateTransform.AngleProperty, null);
+    }
+
+    /// <summary>How far back the petals are twisted before they unfurl.</summary>
+    private double OpenTwistAngle()
+        => _count > 0 ? -Math.Min(12.0, 360.0 / _count * 0.35) : 0;
+
+    /// <summary>Animation towards a value, picking up whatever the property is at right now.</summary>
+    private static DoubleAnimation To(double to, double ms, IEasingFunction? ease = null)
+        => new(to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
+
+    private static DoubleAnimation From(double from, double to, double ms, IEasingFunction? ease, double beginMs = 0)
+    {
+        var animation = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
+        if (beginMs > 0)
+            animation.BeginTime = TimeSpan.FromMilliseconds(beginMs);
+        return animation;
     }
 
     // ---- glass brushes ------------------------------------------------------

@@ -23,6 +23,10 @@ public partial class RadialMenuWindow : Window
     private AppConfig _config;
 
     private bool _shownOnce;
+
+    /// <summary>Window size the frost is waiting to be applied at, once the open animation settles.</summary>
+    private int _pendingGlassSizePx;
+
     private double _scale = 1.0;
     private double _centerX; // window centre, physical pixels
     private double _centerY;
@@ -39,6 +43,8 @@ public partial class RadialMenuWindow : Window
         RootGrid.Children.Add(_menu);
         RootGrid.RenderTransformOrigin = new Point(0.5, 0.5);
         RootGrid.RenderTransform = _zoom;
+        _menu.EnableAnimations = _config.Style.Animate;
+        _menu.OpenAnimationCompleted += OnOpenAnimationCompleted;
         _menu.Build(_config);
     }
 
@@ -49,6 +55,7 @@ public partial class RadialMenuWindow : Window
     public void Rebuild(AppConfig config)
     {
         _config = config;
+        _menu.EnableAnimations = _config.Style.Animate;
         _menu.Build(_config);
     }
 
@@ -104,6 +111,13 @@ public partial class RadialMenuWindow : Window
         _centerX = left + diameterPx / 2.0;
         _centerY = top + diameterPx / 2.0;
 
+        bool animate = _config.Style.Animate;
+
+        // Collapse the petals before the window is painted, so the first frame is
+        // already the start of the animation rather than the finished bubble.
+        if (animate)
+            _menu.PrepareOpenAnimation();
+
         if (!_shownOnce)
         {
             Show();
@@ -121,37 +135,46 @@ public partial class RadialMenuWindow : Window
             sizePx, sizePx,
             NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
 
-        // Clip the desktop blur to the circle at the current size.
-        ApplyGlass(sizePx);
-
-        PlayOpenAnimation();
+        if (animate)
+        {
+            // The blur region is a GDI region on the window; it does not follow the
+            // WPF transforms, so a full-size frosted ring would hang in the air
+            // while the petals are still small. It also survives hiding the window,
+            // so the previous open's region has to be actively cleared — skipping
+            // ApplyGlass is not enough. The frost is applied when the petals settle.
+            _pendingGlassSizePx = sizePx;
+            AcrylicHelper.Disable(hwnd);
+            _menu.StartOpenAnimation();
+        }
+        else
+        {
+            _pendingGlassSizePx = 0;
+            ApplyGlass(sizePx);
+            ResetOpenAnimation();
+        }
 
         _currentIndex = -1;
         _menu.SetHighlight(-1);
         UpdateCursor(cursor);
     }
 
-    private void PlayOpenAnimation()
+    /// <summary>Frost the desktop once the petals have settled at full size.</summary>
+    private void OnOpenAnimationCompleted()
     {
-        if (!_config.Style.Animate)
-        {
-            // Ensure a clean, fully-visible state when animation is disabled.
-            RootGrid.BeginAnimation(OpacityProperty, null);
-            _zoom.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            _zoom.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-            RootGrid.Opacity = 1;
-            _zoom.ScaleX = _zoom.ScaleY = 1;
-            return;
-        }
+        if (Visibility == Visibility.Visible && _pendingGlassSizePx > 0)
+            ApplyGlass(_pendingGlassSizePx);
+        _pendingGlassSizePx = 0;
+    }
 
-        var dur = TimeSpan.FromMilliseconds(130);
-        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-        var fade = new DoubleAnimation(0, 1, dur);
-        var pop = new DoubleAnimation(0.85, 1.0, dur) { EasingFunction = ease };
-
-        RootGrid.BeginAnimation(OpacityProperty, fade);
-        _zoom.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
-        _zoom.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+    /// <summary>Drop straight to the fully-open state (animations turned off).</summary>
+    private void ResetOpenAnimation()
+    {
+        _menu.CancelOpenAnimation();
+        RootGrid.BeginAnimation(OpacityProperty, null);
+        _zoom.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        _zoom.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        RootGrid.Opacity = 1;
+        _zoom.ScaleX = _zoom.ScaleY = 1;
     }
 
     /// <summary>Update the highlighted segment from the current cursor position.</summary>
@@ -175,7 +198,10 @@ public partial class RadialMenuWindow : Window
 
     public void HideMenu()
     {
+        // Closing stays instant so the chosen action fires without delay.
         Visibility = Visibility.Hidden;
+        _pendingGlassSizePx = 0;
+        _menu.CancelOpenAnimation();
         _currentIndex = -1;
         _menu.SetHighlight(-1);
     }
