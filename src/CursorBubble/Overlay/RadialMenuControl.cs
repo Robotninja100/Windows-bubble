@@ -6,6 +6,8 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using CursorBubble.Config;
+// System.IO is used for File.Exists; alias Path so it stays the WPF shape here.
+using Path = System.Windows.Shapes.Path;
 
 namespace CursorBubble.Overlay;
 

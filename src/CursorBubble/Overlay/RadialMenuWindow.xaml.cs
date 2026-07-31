@@ -19,7 +19,7 @@ namespace CursorBubble.Overlay;
 public partial class RadialMenuWindow : Window
 {
     private readonly RadialMenuControl _menu = new();
-    private readonly ScaleTransform _scale = new(1, 1);
+    private readonly ScaleTransform _zoom = new(1, 1);
     private AppConfig _config;
 
     private bool _shownOnce;
@@ -38,7 +38,7 @@ public partial class RadialMenuWindow : Window
         Top = -10000;
         RootGrid.Children.Add(_menu);
         RootGrid.RenderTransformOrigin = new Point(0.5, 0.5);
-        RootGrid.RenderTransform = _scale;
+        RootGrid.RenderTransform = _zoom;
         _menu.Build(_config);
     }
 
@@ -137,10 +137,10 @@ public partial class RadialMenuWindow : Window
         {
             // Ensure a clean, fully-visible state when animation is disabled.
             RootGrid.BeginAnimation(OpacityProperty, null);
-            _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            _scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            _zoom.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            _zoom.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             RootGrid.Opacity = 1;
-            _scale.ScaleX = _scale.ScaleY = 1;
+            _zoom.ScaleX = _zoom.ScaleY = 1;
             return;
         }
 
@@ -150,8 +150,8 @@ public partial class RadialMenuWindow : Window
         var pop = new DoubleAnimation(0.85, 1.0, dur) { EasingFunction = ease };
 
         RootGrid.BeginAnimation(OpacityProperty, fade);
-        _scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
-        _scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+        _zoom.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+        _zoom.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
     }
 
     /// <summary>Update the highlighted segment from the current cursor position.</summary>
