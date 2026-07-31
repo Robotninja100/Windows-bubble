@@ -101,6 +101,14 @@ kun je ze vanuit de bubbel beantwoorden.
 - Een korte focuswissel naar het doelvenster is zichtbaar.
 - Gestructureerde keuzevragen komen als tekst binnen; je typt je keuze.
 
+## Kant-en-klare .exe downloaden
+
+Bij elke commit bouwt GitHub Actions de app op een echte Windows-runner en zet
+er een **self-contained `CursorBubble.exe`** klaar (geen .NET-installatie nodig):
+
+GitHub → tabblad **Actions** → de bovenste (groene) **Build**-run →
+onderaan bij **Artifacts** → **CursorBubble** downloaden en uitpakken.
+
 ## Bouwen en draaien
 
 > Vereist **Windows 10/11** en de **.NET 8 SDK** (WPF bouwt alleen op Windows).
