@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows;
 using CursorBubble.Actions;
@@ -17,6 +18,8 @@ namespace CursorBubble;
 /// global mouse hook, owns the single reusable overlay window and routes the
 /// gesture to the radial menu and its actions.
 /// </summary>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "A WPF Application is torn down through OnExit, which disposes all of these.")]
 public partial class App : Application
 {
     private Mutex? _singleInstance;

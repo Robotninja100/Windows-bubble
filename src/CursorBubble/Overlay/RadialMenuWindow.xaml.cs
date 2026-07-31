@@ -69,7 +69,7 @@ public partial class RadialMenuWindow : Window
         // app underneath while the gesture is in progress.
         int ex = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
         ex |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TRANSPARENT;
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, ex);
+        _ = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, ex);
     }
 
     /// <summary>(Re)apply the desktop blur, clipped to the glass segments.</summary>

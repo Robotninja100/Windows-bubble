@@ -87,7 +87,8 @@ public sealed class MouseHook : IDisposable
         if ((data.flags & NativeMethods.LLMHF_INJECTED) != 0)
             return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
 
-        int msg = (int)wParam;
+        // The message id is a small constant; the truncation is intentional.
+        int msg = unchecked((int)wParam);
         bool swallow = false;
 
         switch (msg)
@@ -197,7 +198,7 @@ public sealed class MouseHook : IDisposable
                 mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_RIGHTUP }
             }
         };
-        NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+        _ = NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
     }
 
     public void Dispose() => Uninstall();

@@ -82,3 +82,6 @@ dotnet_diagnostic.CA1416.severity = none   # platform compatibility
 [src/CursorBubble/Native/*.cs]
 # Win32 structs and constants keep their native spelling.
 dotnet_diagnostic.IDE1006.severity = none
+# GetWindowText with a StringBuilder is the documented marshalling for this call;
+# the char-buffer alternative buys nothing at the two call sites here.
+dotnet_diagnostic.CA1838.severity = none

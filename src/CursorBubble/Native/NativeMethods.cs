@@ -49,7 +49,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
 
     [DllImport("user32.dll")]

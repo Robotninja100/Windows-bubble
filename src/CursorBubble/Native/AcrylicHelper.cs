@@ -33,7 +33,7 @@ internal static class AcrylicHelper
 
         try
         {
-            NativeMethods.DwmEnableBlurBehindWindow(hwnd, ref bb);
+            _ = NativeMethods.DwmEnableBlurBehindWindow(hwnd, ref bb);
         }
         finally
         {
@@ -78,7 +78,7 @@ internal static class AcrylicHelper
 
                 // CombineRgn needs a destination handle of its own.
                 IntPtr merged = NativeMethods.CreateRectRgn(0, 0, 1, 1);
-                NativeMethods.CombineRgn(merged, combined, part, NativeMethods.RGN_OR);
+                _ = NativeMethods.CombineRgn(merged, combined, part, NativeMethods.RGN_OR);
                 NativeMethods.DeleteObject(combined);
                 NativeMethods.DeleteObject(part);
                 combined = merged;
@@ -106,6 +106,6 @@ internal static class AcrylicHelper
             hRgnBlur = IntPtr.Zero,
             fTransitionOnMaximized = false
         };
-        NativeMethods.DwmEnableBlurBehindWindow(hwnd, ref bb);
+        _ = NativeMethods.DwmEnableBlurBehindWindow(hwnd, ref bb);
     }
 }

@@ -239,7 +239,7 @@ public partial class SettingsWindow : Window
         LabelSwatch.Background = BrushFrom(LabelColorBox.Text);
     }
 
-    private static Brush BrushFrom(string hex)
+    private static SolidColorBrush BrushFrom(string hex)
     {
         try
         {

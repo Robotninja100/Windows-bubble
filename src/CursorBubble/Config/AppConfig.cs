@@ -79,7 +79,7 @@ public sealed class StyleConfig
     public double SegmentCornerRadius { get; set; } = 34;
 
     /// <summary>Angle (degrees, clockwise from the top) where the first segment starts.</summary>
-    public double StartAngle { get; set; } = 0;
+    public double StartAngle { get; set; }
 }
 
 /// <summary>

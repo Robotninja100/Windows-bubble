@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -243,7 +244,9 @@ public sealed class RadialMenuControl : Canvas
         AddCenterCancel(cx, cy);
 
         // With per-petal shadows each segment carries its own lift; otherwise one
-        // soft shadow for the whole ring, as before.
+        // soft shadow for the whole ring, as before. The const makes one branch
+        // unreachable by design — it is the switch for backing the change out.
+#pragma warning disable CS0162 // Unreachable code detected
         if (!PerPetalShadow)
         {
             Effect = new DropShadowEffect
@@ -487,7 +490,7 @@ public sealed class RadialMenuControl : Canvas
         });
         badge.Children.Add(new TextBlock
         {
-            Text = count > 99 ? "99+" : count.ToString(),
+            Text = count > 99 ? "99+" : count.ToString(CultureInfo.CurrentCulture),
             Foreground = Brushes.White,
             FontSize = count > 9 ? 10 : 12,
             FontWeight = FontWeights.Bold,
@@ -748,7 +751,7 @@ public sealed class RadialMenuControl : Canvas
     /// coordinates rather than each petal's bounds, so the light falls across
     /// the whole ring in one direction instead of repeating per petal.
     /// </summary>
-    private Brush GlassFill(Color tint, double alpha)
+    private LinearGradientBrush GlassFill(Color tint, double alpha)
     {
         var brush = new LinearGradientBrush
         {
@@ -775,7 +778,7 @@ public sealed class RadialMenuControl : Canvas
     /// stacked bands fake a falloff with distance from the rim, which a single
     /// stroke cannot do — its gradient runs along the petal, not across the edge.
     /// </summary>
-    private static Brush EdgeRefraction(double glassAlpha, double scale)
+    private static LinearGradientBrush EdgeRefraction(double glassAlpha, double scale)
     {
         double peak = Math.Clamp(0.40 + glassAlpha * 1.1, 0.3, 0.95) * scale;
 
@@ -793,7 +796,7 @@ public sealed class RadialMenuControl : Canvas
     }
 
     /// <summary>Specular gloss over the upper part of each petal.</summary>
-    private static Brush Sheen(double glassAlpha)
+    private static RadialGradientBrush Sheen(double glassAlpha)
     {
         var brush = new RadialGradientBrush
         {
@@ -810,7 +813,7 @@ public sealed class RadialMenuControl : Canvas
     }
 
     /// <summary>Rim light: a bright top-left edge fading to almost nothing bottom-right.</summary>
-    private Brush RimStroke()
+    private LinearGradientBrush RimStroke()
     {
         var brush = new LinearGradientBrush
         {
@@ -916,7 +919,7 @@ public sealed class RadialMenuControl : Canvas
         return geo;
     }
 
-    private static Geometry BuildSectorGeometry(double cx, double cy, double rIn, double rOut, double a0, double a1)
+    private static PathGeometry BuildSectorGeometry(double cx, double cy, double rIn, double rOut, double a0, double a1)
     {
         Point outerStart = PointOnCircle(cx, cy, rOut, a0);
         Point outerEnd = PointOnCircle(cx, cy, rOut, a1);

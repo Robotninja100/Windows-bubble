@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -28,7 +29,7 @@ public static class Log
 
     /// <summary>Full path of the log file for today.</summary>
     public static string CurrentFile =>
-        Path.Combine(Dir, $"cursorbubble-{DateTime.Now:yyyyMMdd}.log");
+        Path.Combine(Dir, FormattableString.Invariant($"cursorbubble-{DateTime.Now:yyyyMMdd}.log"));
 
     public static void Info(string message) => Write("INF", message, null);
 
@@ -69,7 +70,7 @@ public static class Log
         try
         {
             var line = new StringBuilder()
-                .Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"))
+                .Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture))
                 .Append(" [").Append(level).Append("] ")
                 .Append(message);
 

@@ -28,7 +28,9 @@ public class ScriptStoreTests
         Assert.DoesNotContain("..", safe, StringComparison.Ordinal);
         Assert.DoesNotContain("/", safe, StringComparison.Ordinal);
         Assert.DoesNotContain("\\", safe, StringComparison.Ordinal);
-        Assert.Equal(-1, safe.IndexOfAny(Path.GetInvalidFileNameChars()));
+        // Fully qualified: WPF pulls in System.Windows.Shapes.Path, which would
+        // otherwise make a bare "Path" ambiguous here.
+        Assert.Equal(-1, safe.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()));
     }
 }
 

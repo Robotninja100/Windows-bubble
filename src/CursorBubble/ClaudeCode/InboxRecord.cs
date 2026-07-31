@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace CursorBubble.ClaudeCode;
@@ -68,9 +69,10 @@ public sealed class InboxRecord
     {
         get
         {
-            if (DateTime.TryParse(Timestamp, null,
-                    System.Globalization.DateTimeStyles.RoundtripKind, out DateTime dt))
-                return dt.ToLocalTime().ToString("HH:mm");
+            if (DateTime.TryParse(Timestamp, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out DateTime dt))
+                // Shown to the user, so their own clock format is the right one.
+                return dt.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture);
             return "";
         }
     }

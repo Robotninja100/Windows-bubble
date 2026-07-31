@@ -269,7 +269,7 @@ public static class WindowInput
     {
         try
         {
-            GetWindowThreadProcessId(hwnd, out uint pid);
+            _ = GetWindowThreadProcessId(hwnd, out uint pid);
             if (pid == 0)
                 return "";
             using Process p = Process.GetProcessById((int)pid);
@@ -287,7 +287,7 @@ public static class WindowInput
         if (len <= 0)
             return "";
         var sb = new StringBuilder(len + 1);
-        GetWindowText(hwnd, sb, sb.Capacity);
+        _ = GetWindowText(hwnd, sb, sb.Capacity);
         return sb.ToString();
     }
 
