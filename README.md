@@ -243,6 +243,19 @@ The executable is **not code-signed**, so Windows SmartScreen warns on first run
 (*More info* → *Run anyway*). Signing needs a certificate, which is the one thing
 that cannot be solved in the repository.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: WPF only builds on
+Windows, so GitHub Actions is the compiler if you are not on it, and warnings
+are errors.
+
+Found a security problem? [SECURITY.md](SECURITY.md) has the private reporting
+route and a written-down account of what this app is able to do — worth reading
+before installing it, since it hooks the mouse, launches processes and edits
+Claude Code's configuration.
+
+Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
