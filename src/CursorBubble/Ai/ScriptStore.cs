@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using CursorBubble.Storage;
 
 namespace CursorBubble.Ai;
 
@@ -30,8 +31,11 @@ public static class ScriptStore
         while (File.Exists(path))
             path = Path.Combine(Dir, $"{baseName}-{i++}.ps1");
 
-        // UTF-8 with BOM so Windows PowerShell reads non-ASCII characters correctly.
-        File.WriteAllText(path, script, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        // UTF-8 with BOM so Windows PowerShell reads non-ASCII characters
+        // correctly. Written atomically: this file is bound to a segment and run
+        // on demand, and a half-written script is one that stops in the middle
+        // of whatever it was doing.
+        AtomicFile.WriteAllText(path, script, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         return path;
     }
 

@@ -78,6 +78,12 @@ public partial class App : Application
         _tray.ExitRequested += () => Shutdown();
         _tray.AutostartToggled += OnAutostartToggled;
 
+        // If the saved settings could not be read, say so once. Coming back to
+        // factory defaults without explanation reads as the app having forgotten
+        // everything by itself.
+        if (ConfigStore.LastLoadFailure is string failure)
+            _tray.ShowError(failure);
+
         _hook = new MouseHook();
         _hook.MenuOpen += p => Dispatcher.InvokeAsync(() => _overlay!.ShowAt(p));
         _hook.MenuMove += p => Dispatcher.InvokeAsync(() => _overlay!.UpdateCursor(p));
@@ -261,8 +267,19 @@ public partial class App : Application
             };
             // A session's file is overwritten when its state changes (e.g. waiting
             // -> finished), which raises Changed rather than Created — watch both.
+            //
+            // Renamed matters just as much: InboxStore writes through a temporary
+            // file and moves it into place, so the arrival of a record reaches us
+            // as a rename, not as a create. Subscribing to only the first two
+            // would leave the tray notifications silent.
             _inboxWatcher.Created += (_, ev) => OnInboxFileEvent(ev.FullPath);
             _inboxWatcher.Changed += (_, ev) => OnInboxFileEvent(ev.FullPath);
+            _inboxWatcher.Renamed += (_, ev) => OnInboxFileEvent(ev.FullPath);
+
+            // The watcher stops delivering after a buffer overflow — a burst from
+            // several concurrent sessions is exactly that shape — and nothing
+            // else would ever re-arm it.
+            _inboxWatcher.Error += (_, _) => Dispatcher.InvokeAsync(RestartInboxWatcher);
         }
         catch (Exception ex)
         {
@@ -271,12 +288,26 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Rebuild the watcher after it reported an error and stopped.</summary>
+    private void RestartInboxWatcher()
+    {
+        _inboxWatcher?.Dispose();
+        _inboxWatcher = null;
+        StartInboxWatcher();
+    }
+
     /// <summary>
-    /// Runs on a watcher thread: read the file that actually changed (with a
-    /// short retry, since the write may not be flushed yet) and notify once per
-    /// distinct session event.
+    /// Runs on a watcher thread: read the file that actually changed and notify
+    /// once per distinct session event.
+    ///
+    /// The read is handed to the thread pool rather than done here.
+    /// <see cref="InboxStore.TryLoad"/> retries for up to a third of a second,
+    /// and every millisecond spent on the watcher's own thread is a millisecond
+    /// of further events piling up in its fixed-size buffer.
     /// </summary>
-    private void OnInboxFileEvent(string path)
+    private void OnInboxFileEvent(string path) => Task.Run(() => ReadAndNotify(path));
+
+    private void ReadAndNotify(string path)
     {
         InboxRecord? record = InboxStore.TryLoad(path);
         if (record is null)

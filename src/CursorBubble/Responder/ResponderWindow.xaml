@@ -6,90 +6,18 @@
         Width="760" Height="520"
         MinWidth="640" MinHeight="440"
         WindowStartupLocation="CenterScreen"
-        Background="#1B1F27"
+        Background="{StaticResource WindowBg}"
         Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PanelText" Color="#EAEEF6" />
-        <SolidColorBrush x:Key="SubText" Color="#9AA4B4" />
-        <SolidColorBrush x:Key="CardBg" Color="#1EFFFFFF" />
-        <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
-        <SolidColorBrush x:Key="Accent" Color="#4C8DFF" />
-
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Background" Value="#2A0E1116" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="CaretBrush" Value="{StaticResource PanelText}" />
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="14,7" />
-            <Setter Property="Margin" Value="6,0,0,0" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
-                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
-                            <!-- RecognizesAccessKey defaults to false on a bare
-                                 ContentPresenter, which would render "_Save" with a
-                                 literal underscore instead of a mnemonic. -->
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"
-                                              RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.45" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- SessionsList is the only ListBox in this window, so binding the item
-             name here is safe. Without it a screen reader reads the four
+        <!-- Colours, metrics and templates come from Themes/Glass.xaml via
+             App.xaml. The one thing that stays here is window-specific:
+             SessionsList is the only ListBox in this window, so the item name
+             can be bound directly. Without it a screen reader reads the four
              TextBlocks of the item template as run-together fragments. -->
-        <Style TargetType="ListBoxItem">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
             <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleSummary}" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="8,7" Margin="0,0,0,4">
-                            <ContentPresenter />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#333C8DFF" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
     </Window.Resources>
 
@@ -109,7 +37,7 @@
                 <TextBlock x:Name="SessionsCaption" Text="Pending sessions" FontSize="15" FontWeight="SemiBold"
                            VerticalAlignment="Center" />
             </DockPanel>
-            <ListBox x:Name="SessionsList" Background="#22101317" BorderBrush="{StaticResource CardBorder}"
+            <ListBox x:Name="SessionsList" Background="{StaticResource ListBg}" BorderBrush="{StaticResource CardBorder}"
                      AutomationProperties.LabeledBy="{Binding ElementName=SessionsCaption}"
                      BorderThickness="1" SelectionChanged="SessionsList_SelectionChanged">
                 <ListBox.ItemTemplate>
@@ -166,7 +94,7 @@
                             <Button x:Name="DismissBtn" Content="_Dismiss" Click="DismissBtn_Click" Margin="0"
                                     AutomationProperties.Name="Dismiss this session" />
                             <Button x:Name="SendBtn" Content="_Send ↵" Click="SendBtn_Click"
-                                    Background="{StaticResource Accent}" Foreground="White"
+                                    Style="{StaticResource PrimaryButton}"
                                     AutomationProperties.Name="Send reply" />
                         </StackPanel>
                     </DockPanel>

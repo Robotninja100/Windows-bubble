@@ -142,54 +142,54 @@ public class WindowAutomationTests
         Assert.Equal(expected, (string?)target.Attribute("AutomationProperties.Name"));
     }
 
-    [Theory]
-    [InlineData(Settings)]
-    [InlineData(Responder)]
-    [InlineData(AiDialog)]
-    public void Every_button_template_recognises_access_keys(string file)
+    // These two used to run per window, back when each window carried its own
+    // copy of the templates. The templates now live in Themes/Glass.xaml, so
+    // they sweep every XAML file in the project instead — which is also what
+    // stops the check quietly going missing the next time markup moves.
+
+    [Fact]
+    public void Every_button_template_recognises_access_keys()
     {
         // RecognizesAccessKey defaults to false on a bare ContentPresenter, so
         // without it Content="_Save" renders a literal underscore instead of a
         // mnemonic. It is the easiest thing in the accessibility work to lose.
-        XDocument xaml = Xaml.Load(file);
-
-        var buttonTemplates = xaml.Descendants()
-            .Where(e => e.Name.LocalName == "ControlTemplate"
-                     && (string?)e.Attribute("TargetType") == "Button")
+        var templates = Xaml.EveryControlTemplate()
+            .Where(t => t.TargetType == "Button")
             .ToList();
 
-        Assert.NotEmpty(buttonTemplates);
+        Assert.NotEmpty(templates);
 
-        foreach (XElement template in buttonTemplates)
+        foreach ((string file, string _, XElement template) in templates)
         {
             XElement presenter = Assert.Single(
-                template.Descendants().Where(e => e.Name.LocalName == "ContentPresenter"));
+                template.Descendants(), e => e.Name.LocalName == "ContentPresenter");
 
             Assert.Equal("True", (string?)presenter.Attribute("RecognizesAccessKey"));
         }
     }
 
-    [Theory]
-    [InlineData(Settings)]
-    [InlineData(Responder)]
-    [InlineData(AiDialog)]
-    public void Every_custom_template_shows_keyboard_focus(string file)
+    /// <summary>
+    /// Template target types that are never keyboard-focusable, so requiring a
+    /// focus trigger on them would mean inventing a state they cannot enter.
+    /// Each is an internal part of a control that <em>is</em> focusable, and it
+    /// is the parent that carries the focus visual.
+    /// </summary>
+    private static readonly HashSet<string> NonFocusableParts =
+        new() { "RepeatButton", "Thumb", "ScrollBar", "ToggleButton" };
+
+    [Fact]
+    public void Every_focusable_custom_template_shows_keyboard_focus()
     {
         // A templated control that repaints its own border needs the focused
         // state in the template too, or keyboard focus is simply invisible.
-        XDocument xaml = Xaml.Load(file);
-
-        var templates = xaml.Descendants()
-            .Where(e => e.Name.LocalName == "ControlTemplate"
-                     && e.Attribute("TargetType") is not null)
+        var templates = Xaml.EveryControlTemplate()
+            .Where(t => !NonFocusableParts.Contains(t.TargetType))
             .ToList();
 
         Assert.NotEmpty(templates);
 
-        foreach (XElement template in templates)
+        foreach ((string file, string targetType, XElement template) in templates)
         {
-            string targetType = (string?)template.Attribute("TargetType") ?? "?";
-
             bool hasFocusTrigger = template.Descendants()
                 .Any(e => e.Name.LocalName == "Trigger"
                        && (string?)e.Attribute("Property") == "IsKeyboardFocused");
@@ -197,6 +197,29 @@ public class WindowAutomationTests
             Assert.True(hasFocusTrigger,
                 $"The {targetType} template in {file} has no IsKeyboardFocused trigger, " +
                 "so keyboard focus is invisible in it.");
+        }
+    }
+
+    [Fact]
+    public void No_window_redeclares_a_style_the_theme_already_owns()
+    {
+        // The drift this whole file guards against started as three private
+        // copies of the same styles. A window may still override one, but it
+        // has to be for a reason that is specific to that window — and the only
+        // one today derives from the theme rather than replacing it.
+        foreach (string file in new[] { Settings, Responder, AiDialog })
+        {
+            foreach (XElement style in Xaml.Load(file).Descendants()
+                         .Where(e => e.Name.LocalName == "Style"))
+            {
+                string? target = (string?)style.Attribute("TargetType");
+                bool derives = style.Attribute("BasedOn") is not null;
+
+                Assert.True(derives,
+                    $"{file} declares its own Style for {target ?? "?"} without BasedOn. " +
+                    "Styling belongs in Themes/Glass.xaml; a window-level style that " +
+                    "replaces rather than extends it is how the three windows drifted apart.");
+            }
         }
     }
 
@@ -239,6 +262,31 @@ internal static class Xaml
         string full = Path.Combine(SourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Assert.True(File.Exists(full), $"XAML not found: {full}");
         return XDocument.Load(full);
+    }
+
+    /// <summary>
+    /// Every <c>ControlTemplate</c> with a TargetType, anywhere in the project,
+    /// as (file, target type, element).
+    ///
+    /// Discovered by walking the directory rather than from a list, so a
+    /// template added in a new file is covered without anyone remembering to
+    /// add it here.
+    /// </summary>
+    public static IEnumerable<(string File, string TargetType, XElement Template)> EveryControlTemplate()
+    {
+        foreach (string path in Directory.EnumerateFiles(SourceRoot, "*.xaml", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(SourceRoot, path).Replace(Path.DirectorySeparatorChar, '/');
+
+            foreach (XElement template in XDocument.Load(path).Descendants()
+                         .Where(e => e.Name.LocalName == "ControlTemplate"))
+            {
+                // A FocusVisualStyle's template has no TargetType and is not a
+                // control's own chrome; it is the focus ring itself.
+                if ((string?)template.Attribute("TargetType") is { } target)
+                    yield return (relative, target, template);
+            }
+        }
     }
 
     /// <summary>The element with this <c>x:Name</c>, or null.</summary>

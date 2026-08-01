@@ -1,6 +1,7 @@
 using System.IO;
 using CursorBubble.Ai;
 using CursorBubble.ClaudeCode;
+using CursorBubble.Config;
 using CursorBubble.Native;
 using Xunit;
 // WPF's implicit usings bring in System.Windows.Shapes.Path, so plain "Path"
@@ -49,7 +50,9 @@ public class DataProtectionTests
 
         Assert.NotEqual(key, stored);
         Assert.DoesNotContain("sk-ant", stored, StringComparison.Ordinal);
-        Assert.Equal(key, DataProtection.Unprotect(stored));
+
+        Assert.True(DataProtection.TryUnprotect(stored, out string back));
+        Assert.Equal(key, back);
     }
 
     [Fact]
@@ -57,15 +60,50 @@ public class DataProtectionTests
     {
         Assert.Equal("", DataProtection.Protect(null));
         Assert.Equal("", DataProtection.Protect(""));
-        Assert.Equal("", DataProtection.Unprotect(null));
-        Assert.Equal("", DataProtection.Unprotect(""));
+
+        Assert.True(DataProtection.TryUnprotect(null, out string fromNull));
+        Assert.Equal("", fromNull);
+
+        Assert.True(DataProtection.TryUnprotect("", out string fromEmpty));
+        Assert.Equal("", fromEmpty);
     }
 
     [Fact]
     public void A_plain_text_key_from_an_older_config_is_returned_as_is()
     {
         // Before DPAPI the key was stored in the clear; those configs must keep working.
-        Assert.Equal("sk-plain-text", DataProtection.Unprotect("sk-plain-text"));
+        Assert.True(DataProtection.TryUnprotect("sk-plain-text", out string key));
+        Assert.Equal("sk-plain-text", key);
+    }
+
+    [Fact]
+    public void Ciphertext_this_machine_cannot_open_is_reported_rather_than_handed_back()
+    {
+        // What a config copied from another pc or another Windows account looks
+        // like: valid base64, but not a blob DPAPI will open for this user.
+        //
+        // This is the case the old Unprotect got wrong. It returned the stored
+        // string unchanged, so the caller received base64 text believing it was
+        // the key, sent that to the API, and got back "invalid key" — pointing
+        // the user at their key rather than at the machine they copied it to.
+        string foreignBlob = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+
+        Assert.False(DataProtection.TryUnprotect(foreignBlob, out string key));
+        Assert.Equal("", key);
+    }
+
+    [Fact]
+    public void A_key_that_cannot_be_decrypted_reads_as_no_key_at_all()
+    {
+        // The consequence of the above, where the app actually sees it: the AI
+        // screen shows an empty field and says a key is needed, instead of
+        // failing later with a misleading error from the API.
+        var config = new AppConfig
+        {
+            AiApiKeyProtected = Convert.ToBase64String(new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 })
+        };
+
+        Assert.Equal("", config.AiApiKey);
     }
 }
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CursorBubble.Storage;
 
 namespace CursorBubble.ClaudeCode;
 
@@ -41,8 +42,8 @@ public static class HookInstaller
     {
         try
         {
-            JsonObject root = Load();
-            return EventHasOurHook(root, "Stop");
+            JsonObject? root = Load();
+            return root is not null && EventHasOurHook(root, "Stop");
         }
         catch
         {
@@ -209,10 +210,12 @@ public static class HookInstaller
 
         BackUp();
 
+        // Via AtomicFile rather than a local temp-and-move: same shape, but it
+        // also flushes the OS buffers before the move. Without that the move can
+        // complete while the new content is still only in the page cache, which
+        // is the case a power cut turns into a zero-length settings.json.
         var options = new JsonSerializerOptions { WriteIndented = true };
-        string temp = SettingsPath + ".tmp";
-        File.WriteAllText(temp, root.ToJsonString(options));
-        File.Move(temp, SettingsPath, overwrite: true);
+        AtomicFile.WriteAllText(SettingsPath, root.ToJsonString(options));
     }
 
     /// <summary>

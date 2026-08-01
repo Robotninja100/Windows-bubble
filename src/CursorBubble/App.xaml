@@ -3,25 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <!-- Shared keyboard focus ring. Application resources are the last lookup
-             step for every window, so all three pick this up.
+        <ResourceDictionary>
+            <!-- The app's colours, metrics and control templates. Application
+                 resources are the last lookup step for every window, so all
+                 three pick these up without declaring anything themselves.
 
-             WPF draws a FocusVisualStyle only when the keyboard was the most
-             recent input device, so clicking a button with the mouse still shows
-             nothing. The stock adorner is a 1px black dotted rectangle, which is
-             invisible on this app's dark chrome and on the glass. -->
-        <Style x:Key="FocusRing" TargetType="Control">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate>
-                        <Rectangle Margin="-2"
-                                   RadiusX="7" RadiusY="7"
-                                   Stroke="#7FB0FF" StrokeThickness="2"
-                                   SnapsToDevicePixels="True"
-                                   IsHitTestVisible="False" />
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+                 The overlay does not: it draws its own geometry from the user's
+                 StyleConfig, which is a different visual language on purpose —
+                 glass over the desktop rather than chrome. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Themes/Glass.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

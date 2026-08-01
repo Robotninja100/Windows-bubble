@@ -6,120 +6,12 @@
         Width="760" Height="560"
         MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen"
-        Background="#1B1F27"
+        Background="{StaticResource WindowBg}"
         Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI"
         TextOptions.TextFormattingMode="Ideal">
 
-    <Window.Resources>
-        <SolidColorBrush x:Key="PanelText" Color="#EAEEF6" />
-        <SolidColorBrush x:Key="SubText" Color="#9AA4B4" />
-        <SolidColorBrush x:Key="CardBg" Color="#1EFFFFFF" />
-        <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
-        <SolidColorBrush x:Key="Accent" Color="#4C8DFF" />
-
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-        </Style>
-        <Style TargetType="TextBlock" x:Key="Heading">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Margin" Value="0,0,0,10" />
-        </Style>
-        <Style TargetType="TextBlock" x:Key="FieldLabel">
-            <Setter Property="Foreground" Value="{StaticResource SubText}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="0,10,0,3" />
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="12,6" />
-            <Setter Property="Margin" Value="4,0,0,0" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
-                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
-                            <!-- RecognizesAccessKey defaults to false on a bare
-                                 ContentPresenter, which would render "_Save" with a
-                                 literal underscore instead of a mnemonic. -->
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"
-                                              RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#11FFFFFF" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="TextBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Background" Value="#2A0E1116" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="CaretBrush" Value="{StaticResource PanelText}" />
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-
-        <Style TargetType="CheckBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-        </Style>
-
-        <!-- These two have no other styling here; the setter exists purely so the
-             keyboard focus ring is visible against the dark chrome. -->
-        <Style TargetType="ComboBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-        </Style>
-        <Style TargetType="Slider">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-        </Style>
-        <Style TargetType="PasswordBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-        </Style>
-
-        <Style TargetType="ListBoxItem">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#333C8DFF" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
+    <!-- All styling comes from Themes/Glass.xaml via App.xaml. -->
 
     <Grid Margin="0">
         <Grid.ColumnDefinitions>
@@ -128,7 +20,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Left navigation -->
-        <Border Grid.Column="0" Background="#14FFFFFF" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{StaticResource NavBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,1,0">
             <StackPanel Margin="0,16,0,0">
                 <TextBlock Text="CursorBubble" FontWeight="Bold" FontSize="15"
                            Foreground="{StaticResource PanelText}" Margin="16,0,16,16" />
@@ -177,7 +69,7 @@
                                  AutomationProperties.LabeledBy="{Binding ElementName=HotkeyCaption}"
                                  AutomationProperties.HelpText="Press the key combination you want. Tab moves on without changing it." />
                     </DockPanel>
-                    <TextBlock x:Name="HotkeyHint" Foreground="#6B7486" FontSize="11"
+                    <TextBlock x:Name="HotkeyHint" Foreground="{StaticResource HintText}" FontSize="11"
                                Margin="0,-10,0,14" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Polite" />
                     <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1"
@@ -193,7 +85,7 @@
                                 without doing anything.
                             </TextBlock>
                             <TextBlock x:Name="ConfigPathText" TextWrapping="Wrap"
-                                       Foreground="#6B7486" FontSize="11" Margin="0,10,0,0" />
+                                       Foreground="{StaticResource HintText}" FontSize="11" Margin="0,10,0,0" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -276,7 +168,7 @@
                             <Button x:Name="DownBtn" Content="▼ _Down" Click="DownBtn_Click"
                                     AutomationProperties.Name="Move the selected segment down" />
                         </StackPanel>
-                        <ListBox x:Name="SegmentsList" DisplayMemberPath="Label" Background="#22101317"
+                        <ListBox x:Name="SegmentsList" DisplayMemberPath="Label" Background="{StaticResource ListBg}"
                                  AutomationProperties.Name="Segments"
                                  BorderBrush="{StaticResource CardBorder}" Foreground="{StaticResource PanelText}"
                                  SelectionChanged="SegmentsList_SelectionChanged" />
@@ -334,7 +226,7 @@
                         <TextBox x:Name="ArgumentsBox" TextChanged="Detail_Changed"
                                  AutomationProperties.LabeledBy="{Binding ElementName=ArgumentsCaption}" />
                         <TextBlock x:Name="ArgumentsHint" Visibility="Collapsed"
-                                   Foreground="#FFD98A" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Foreground="{StaticResource WarnText}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                    AutomationProperties.LiveSetting="Polite"
                                    Text="The target is an inline command, so it already contains its own arguments — this field is ignored. Point at a .ps1, .bat or .cmd file to use it." />
 
@@ -414,7 +306,7 @@
                     </TextBlock>
 
                     <TextBlock x:Name="AiApiKeyCaption" Text="API key" Style="{StaticResource FieldLabel}" />
-                    <PasswordBox x:Name="AiApiKeyBox" Padding="6,4" Background="#2A0E1116"
+                    <PasswordBox x:Name="AiApiKeyBox" Padding="6,4" Background="{StaticResource FieldBg}"
                                  Foreground="{StaticResource PanelText}" BorderBrush="{StaticResource CardBorder}"
                                  AutomationProperties.LabeledBy="{Binding ElementName=AiApiKeyCaption}"
                                  PasswordChanged="AiApiKey_Changed" />
@@ -423,7 +315,7 @@
                     <ComboBox x:Name="AiModelBox" SelectionChanged="AiModel_Changed"
                               AutomationProperties.LabeledBy="{Binding ElementName=AiModelCaption}" />
 
-                    <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource HintText}" FontSize="11" Margin="0,10,0,0">
                         Create a key at console.anthropic.com. It is stored encrypted in config.json
                         (Windows DPAPI, readable only by your account).
                     </TextBlock>
@@ -441,14 +333,14 @@
 
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <Button x:Name="LinkClaudeBtn" Content="_Link Claude Code" Margin="0"
-                                Background="#4C8DFF" Foreground="White" Click="LinkClaude_Click" />
+                                Style="{StaticResource PrimaryButton}" Click="LinkClaude_Click" />
                         <Button x:Name="UnlinkClaudeBtn" Content="_Unlink" Click="UnlinkClaude_Click"
                                 AutomationProperties.Name="Unlink Claude Code" />
                     </StackPanel>
                     <TextBlock x:Name="ClaudeStatusText" Foreground="{StaticResource SubText}"
                                AutomationProperties.LiveSetting="Polite"
                                Margin="0,10,0,0" TextWrapping="Wrap" />
-                    <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource HintText}" FontSize="11" Margin="0,10,0,0">
                         Replies are delivered to the right window through the clipboard (focus → paste
                         → Enter). Restart any running Claude Code sessions after linking so the hooks
                         take effect.
@@ -479,31 +371,8 @@
                 <!-- Escape cancels, Enter saves. Every text box on this window is
                      single-line, so Enter never has a competing meaning. -->
                 <Button x:Name="CancelBtn" Content="_Cancel" Click="CancelBtn_Click" IsCancel="True" />
-                <Button x:Name="SaveBtn" Content="_Save" Foreground="White" Click="SaveBtn_Click" IsDefault="True">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="bd" CornerRadius="6" Background="{StaticResource Accent}"
-                                    BorderBrush="#5C9BFF" BorderThickness="1">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="12,6" RecognizesAccessKey="True" />
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsKeyboardFocused" Value="True">
-                                    <Setter TargetName="bd" Property="BorderBrush" Value="#DCE9FF" />
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="#5C9BFF" />
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="#3F7AE0" />
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="bd" Property="Opacity" Value="0.45" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                <Button x:Name="SaveBtn" Content="_Save" Click="SaveBtn_Click" IsDefault="True"
+                        Style="{StaticResource PrimaryButton}" />
             </StackPanel>
         </Grid>
     </Grid>
