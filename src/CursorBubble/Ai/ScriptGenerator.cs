@@ -19,6 +19,13 @@ public static class ScriptGenerator
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(120) };
 
+    /// <summary>
+    /// Room for the script plus its explanation. Generous on purpose: running
+    /// out mid-script is now a hard error rather than a silently truncated
+    /// result, and an unused ceiling costs nothing.
+    /// </summary>
+    private const int MaxTokens = 8192;
+
     private const string SystemPrompt =
         "You write small, safe Windows PowerShell scripts from a user's plain-language request. " +
         "Target Windows 10/11 with the built-in PowerShell (Desktop 5.1). " +
@@ -45,7 +52,7 @@ public static class ScriptGenerator
         var payload = new
         {
             model,
-            max_tokens = 4096,
+            max_tokens = MaxTokens,
             system = SystemPrompt,
             messages = new[]
             {
@@ -81,11 +88,26 @@ public static class ScriptGenerator
         using JsonDocument doc = JsonDocument.Parse(body);
         JsonElement root = doc.RootElement;
 
-        if (root.TryGetProperty("stop_reason", out JsonElement stop) &&
-            stop.GetString() == "refusal")
+        string? stopReason = root.TryGetProperty("stop_reason", out JsonElement stop)
+            ? stop.GetString()
+            : null;
+
+        if (stopReason == "refusal")
         {
             throw new InvalidOperationException(
                 "Het model heeft dit verzoek geweigerd. Formuleer het anders of pas het doel aan.");
+        }
+
+        // The response ran into the token limit, so the script is cut off — very
+        // likely mid-statement. It would still parse out of the JSON and still
+        // look plausible in the review box, which is how a half-written script
+        // ends up saved and bound to a segment. A backup script that stops
+        // halfway is worse than no script at all.
+        if (stopReason == "max_tokens")
+        {
+            throw new InvalidOperationException(
+                "Het antwoord liep tegen de tokenlimiet aan, dus het script is onvolledig. " +
+                "Vraag om een korter of eenvoudiger script en probeer het opnieuw.");
         }
 
         // Find the first text content block (thinking blocks may precede it).

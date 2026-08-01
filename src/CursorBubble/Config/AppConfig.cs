@@ -96,11 +96,18 @@ public sealed class AppConfig
     /// <summary>
     /// Plain-text Anthropic API key for the "Generate with AI" feature. Not
     /// serialized — the value is stored encrypted via <see cref="AiApiKeyProtected"/>.
+    ///
+    /// Reads as empty when the stored value cannot be decrypted — a config
+    /// carried over from another pc or Windows account. That is the truthful
+    /// answer: there is no key this machine can use, and the AI screen already
+    /// says so clearly. The setter throws
+    /// (<see cref="System.Security.Cryptography.CryptographicException"/>) if
+    /// the key cannot be encrypted, so a caller never believes it saved one.
     /// </summary>
     [JsonIgnore]
     public string AiApiKey
     {
-        get => DataProtection.Unprotect(AiApiKeyProtected);
+        get => DataProtection.TryUnprotect(AiApiKeyProtected, out string plain) ? plain : "";
         set => AiApiKeyProtected = DataProtection.Protect(value);
     }
 

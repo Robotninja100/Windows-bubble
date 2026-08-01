@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -130,7 +131,8 @@ public partial class SettingsWindow : Window
         HighlightColorBox.Text = s.HighlightColor;
         LabelColorBox.Text = s.LabelColor;
 
-        AiApiKeyBox.Password = _working.AiApiKey;
+        _pendingApiKey = _working.AiApiKey;
+        AiApiKeyBox.Password = _pendingApiKey;
         AiModelBox.SelectedValue = _working.AiModel;
 
         _suspend = false;
@@ -317,10 +319,21 @@ public partial class SettingsWindow : Window
 
     // ---- AI script generation ----------------------------------------------
 
+    /// <summary>
+    /// Held in plain text until Save, then encrypted once.
+    ///
+    /// Assigning straight to <see cref="AppConfig.AiApiKey"/> here ran DPAPI on
+    /// every keystroke, and now that the setter reports failure instead of
+    /// quietly storing the key unprotected, it would also have to report that
+    /// failure per keystroke. Both problems go away by encrypting where the user
+    /// is asking for the value to be kept.
+    /// </summary>
+    private string _pendingApiKey = "";
+
     private void AiApiKey_Changed(object sender, RoutedEventArgs e)
     {
         if (_suspend) return;
-        _working.AiApiKey = AiApiKeyBox.Password;
+        _pendingApiKey = AiApiKeyBox.Password;
     }
 
     private void AiModel_Changed(object sender, SelectionChangedEventArgs e)
@@ -339,7 +352,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_working.AiApiKey))
+        // The key as it currently stands in the box, not as it was last saved —
+        // generating should work with what the user just typed.
+        if (string.IsNullOrWhiteSpace(_pendingApiKey))
         {
             MessageBox.Show(this,
                 "Stel eerst je Anthropic API-sleutel in bij Instellingen → AI.",
@@ -348,7 +363,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        var dialog = new AiScriptDialog(_working.AiApiKey, _working.AiModel) { Owner = this };
+        var dialog = new AiScriptDialog(_pendingApiKey, _working.AiModel) { Owner = this };
         if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResultScript))
         {
             string name = string.IsNullOrWhiteSpace(seg.Label) ? "script" : seg.Label.Replace("\n", " ");
@@ -467,6 +482,25 @@ public partial class SettingsWindow : Window
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {
         _working.StartWithWindows = StartWithWindowsCheck.IsChecked == true;
+
+        try
+        {
+            _working.AiApiKey = _pendingApiKey;
+        }
+        catch (CryptographicException ex)
+        {
+            // Saving the rest and dropping the key would leave the AI screen
+            // showing an empty field with no explanation. Stop here instead, so
+            // the window stays open on the value the user just typed.
+            MessageBox.Show(this,
+                "Er is niets opgeslagen: de API-sleutel kon niet versleuteld worden.\n\n" +
+                ex.Message + "\n\nMaak het sleutelveld leeg als je de overige " +
+                "instellingen wél wilt bewaren.",
+                "CursorBubble", MessageBoxButton.OK, MessageBoxImage.Warning);
+            NavList.SelectedIndex = 4;
+            return;
+        }
+
         Saved?.Invoke(_working);
         Close();
     }

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CursorBubble.Storage;
 
 namespace CursorBubble.ClaudeCode;
 
@@ -26,14 +27,18 @@ public static class InboxStore
     public static void Save(InboxRecord record)
     {
         Directory.CreateDirectory(Dir);
-        string path = PathFor(record.SessionId);
-        File.WriteAllText(path, JsonSerializer.Serialize(record, Options));
+        AtomicFile.WriteAllText(PathFor(record.SessionId), JsonSerializer.Serialize(record, Options));
     }
 
     /// <summary>
-    /// Read a single record, retrying briefly: a file-system watcher can fire
-    /// before the writer has flushed, so the first read may see an empty or
-    /// partial file. Call this off the UI thread. Returns null if unreadable.
+    /// Read a single record, retrying briefly. Returns null if unreadable.
+    ///
+    /// The retry no longer exists to skip past a partially written file — since
+    /// <see cref="Save"/> became atomic a reader sees either the whole previous
+    /// record or the whole new one. What remains is the sharing violation that a
+    /// reader can still hit during the instant the writer replaces the file, and
+    /// the watcher firing on the temporary file's own move. Both clear in
+    /// milliseconds. Call this off the UI thread.
     /// </summary>
     public static InboxRecord? TryLoad(string path, int attempts = 6)
     {

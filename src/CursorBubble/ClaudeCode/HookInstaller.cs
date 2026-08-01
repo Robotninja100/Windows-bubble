@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CursorBubble.Storage;
 
 namespace CursorBubble.ClaudeCode;
 
@@ -29,8 +30,8 @@ public static class HookInstaller
     {
         try
         {
-            JsonObject root = Load();
-            return EventHasOurHook(root, "Stop");
+            JsonObject? root = Load();
+            return root is not null && EventHasOurHook(root, "Stop");
         }
         catch
         {
@@ -41,7 +42,7 @@ public static class HookInstaller
     /// <summary>Add our hooks to Stop and Notification (idempotent).</summary>
     public static void Install()
     {
-        JsonObject root = Load();
+        JsonObject root = LoadOrRefuse();
         JsonObject hooks = GetOrCreateObject(root, "hooks");
         string command = HookCommand();
 
@@ -67,7 +68,7 @@ public static class HookInstaller
     /// <summary>Remove any hook groups that invoke CursorBubble.</summary>
     public static void Uninstall()
     {
-        JsonObject root = Load();
+        JsonObject root = LoadOrRefuse();
         if (root["hooks"] is not JsonObject hooks)
             return;
 
@@ -119,29 +120,50 @@ public static class HookInstaller
         return false;
     }
 
-    private static JsonObject Load()
+    /// <summary>
+    /// Read <c>~/.claude/settings.json</c>.
+    ///
+    /// Returns an empty object when the file does not exist yet — that is a
+    /// first link, and writing a fresh object is correct. Returns <c>null</c>
+    /// when the file <em>does</em> exist but cannot be read or is not a JSON
+    /// object, which callers that intend to write must treat as a stop signal.
+    /// </summary>
+    private static JsonObject? Load()
     {
+        if (!File.Exists(SettingsPath))
+            return new JsonObject();
+
         try
         {
-            if (File.Exists(SettingsPath))
-            {
-                JsonNode? node = JsonNode.Parse(File.ReadAllText(SettingsPath));
-                if (node is JsonObject obj)
-                    return obj;
-            }
+            return JsonNode.Parse(File.ReadAllText(SettingsPath)) as JsonObject;
         }
         catch
         {
-            // corrupt file — start from a fresh object rather than lose the ability to link
+            return null;
         }
-        return new JsonObject();
     }
+
+    /// <summary>
+    /// <see cref="Load"/> for the write paths, refusing rather than starting
+    /// from a blank object.
+    ///
+    /// This used to fall back to an empty object on any read error, and
+    /// <see cref="Install"/> then saved that over the file — so one unreadable
+    /// read deleted every Claude Code setting the user had, in order to add a
+    /// hook. Linking is a convenience; someone's editor config, permissions and
+    /// MCP servers are not. When in doubt, change nothing.
+    /// </summary>
+    private static JsonObject LoadOrRefuse()
+        => Load() ?? throw new InvalidOperationException(
+            $"{SettingsPath} kon niet gelezen worden. Er is niets gewijzigd, zodat je " +
+            "bestaande Claude Code-instellingen niet overschreven worden. Controleer of " +
+            "het bestand geldige JSON bevat en probeer het opnieuw.");
 
     private static void Save(JsonObject root)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
         var options = new JsonSerializerOptions { WriteIndented = true };
-        File.WriteAllText(SettingsPath, root.ToJsonString(options));
+        AtomicFile.WriteAllText(SettingsPath, root.ToJsonString(options));
     }
 
     private static JsonObject GetOrCreateObject(JsonObject parent, string key)

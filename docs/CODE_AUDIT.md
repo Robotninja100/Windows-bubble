@@ -53,6 +53,11 @@ process debt, in descending order.
 
 ---
 
+> **Status:** the P0 band (#1-#4, #6) and the two reliability findings that
+> touching it exposed (#11, #12) are **fixed in this branch** — see
+> [Appendix B](#appendix-b--fixed-in-this-branch). #5 was left alone on purpose;
+> the entry explains why. Everything from P1 down is still open.
+
 ## P0 — Correctness and data loss
 
 ### 1. DPAPI failure silently stores the API key in the clear *and* corrupts it
@@ -116,7 +121,7 @@ That is a workaround for the non-atomic write in #3. With atomic replace the
 reader either sees the old file or the new one, never a partial one, and the
 loop (and its 360 ms of blocking — see #8) disappears.
 
-### 5. Releasing the mouse anywhere on screen fires an action
+### 5. Releasing the mouse anywhere on screen fires an action — *by design, worth revisiting*
 `Overlay/RadialMenuControl.cs:304-318`
 
 `HitTest` rejects the inner dead zone but has **no outer bound**:
@@ -133,8 +138,22 @@ the work-area clamping in `ShowAt` (`RadialMenuWindow.xaml.cs:101-102`), where
 the bubble is deliberately *not* centred on the cursor near a screen edge, the
 distance between "what I pointed at" and "what ran" can be most of the screen.
 
-**Fix:** return `-1` beyond roughly `_outer * 1.25`. Keep a margin so a slightly
-overshot gesture still counts, but cancel past it.
+**This is a deliberate decision, not an oversight.** PR #1 extracts the same
+logic into `RadialMath.SegmentAt` and documents it explicitly at
+`RadialMath.cs:28`: *"Distance beyond the outer radius deliberately still
+selects: a radial menu…"* — which is indeed how most radial menus behave, and
+it makes fast flick gestures work without precision.
+
+Left unchanged here for that reason. It is listed because the reasoning
+deserves to be weighed against this app's specific payload: a radial menu that
+switches brush size can afford a generous catchment, and one whose segments run
+arbitrary PowerShell is a different risk. If the current behaviour stands, the
+README's "Bekende beperkingen" section should say so, since nothing visible on
+screen suggests that releasing 900 px away will act.
+
+**If revisited:** return `-1` beyond roughly `_outer * 2`, generous enough that
+a deliberate flick still lands, bounded enough that an abandoned gesture on the
+far side of the monitor cancels.
 
 ### 6. Truncated AI scripts are presented as complete
 `Ai/ScriptGenerator.cs:47,79-110`
@@ -642,3 +661,33 @@ is untouched), #2/#3 (`ConfigStore.Save` still writes directly), #5, #6, #7, #14
 (the `--hook` path still boots WPF), #17, #18 (`keybd_event` unchanged), #19,
 #21, #24, #25, #27, #29, #35, #61, #62, #69, #70, #77 (as a trust-model
 statement), #80, #81.
+
+---
+
+## Appendix B — fixed in this branch
+
+Everything in the P0 band except #5, plus two P1 findings that fixing it
+exposed. All of these were verified still open on PR #1 before being touched, so
+none of it duplicates that work.
+
+| # | Finding | Change |
+|---|---|---|
+| 1 | DPAPI failure stored the key in the clear and corrupted it | `Protect` throws instead of falling back to plaintext; `Unprotect` replaced by `TryUnprotect`, which reports "cannot decrypt" rather than returning base64 as if it were the key |
+| 2 | A corrupt config destroyed every setting | `ConfigStore.Quarantine` moves the unreadable file to `config.corrupt-<timestamp>.json`; `LastLoadFailure` surfaces it in the tray at startup |
+| 3 | No atomic writes | New `Storage/AtomicFile.cs` — temp file beside the destination, flushed to disk, then moved into place. Used by `ConfigStore`, `InboxStore`, `HookInstaller` and `ScriptStore` |
+| 4 | Inbox retry loop papering over #3 | Kept, with the comment corrected to what it now actually guards against (a sharing violation during the move, not a partial read) |
+| 6 | Truncated AI scripts presented as complete | `stop_reason == "max_tokens"` is now a hard error; `max_tokens` raised to 8192 |
+| 11 | Watcher could die silently on buffer overflow | `Error` handler re-arms the watcher |
+| 12 | Watcher thread blocked up to 360 ms per event | The read moved to the thread pool |
+
+Two changes were forced by the above rather than chosen:
+
+- **`FileSystemWatcher` now also subscribes to `Renamed`.** Atomic writes arrive
+  as a move, which raises `Renamed` rather than `Created`. Without this the
+  inbox notifications would have gone silent — the fix for #3 would have broken
+  the feature it was protecting.
+- **The API key is encrypted at Save, not per keystroke** (#25, partial).
+  `AppConfig.AiApiKey`'s setter can now throw, and doing that on every keystroke
+  would mean reporting the failure on every keystroke. `SettingsWindow` holds
+  the typed value and encrypts once, reporting failure at the point the user
+  asked for it to be kept — and refusing to save rather than dropping the key.
