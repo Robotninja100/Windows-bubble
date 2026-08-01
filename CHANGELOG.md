@@ -28,6 +28,22 @@ interface. Changing what an existing key does is breaking; adding a key is not.
 
 ### Added
 
+- **The settings window is the app now.** It opens on an **Overview** page:
+  tiles for how often the bubble has been opened (and by which route), how many
+  actions it has run, your favourite segment, your streak of consecutive days
+  and an estimate of the time saved; a ranking of your busiest segments; a set
+  of facts drawn from the same numbers; and a row per group of settings that
+  takes you to it. The sidebar carries the app's identity, an icon per page and
+  a live line of statistics; each page has a title and a sentence saying what it
+  is for; the live preview appears only on the three pages that change how the
+  bubble looks; the footer says when something is unsaved, and closing the
+  window from the title bar asks before discarding it. **About** is new too:
+  version, where every file lives, and buttons that open them.
+- **Usage counters**, in `%APPDATA%\CursorBubble\usage.json` beside the
+  settings. Opens by route, actions per segment and per kind, cancels, generated
+  scripts, and about a year of active days for the streak. Local only — there is
+  no network code behind them — switchable off under **General**, and deletable
+  in one click under **About**.
 - **A keyboard path to the bubble.** `Ctrl+Alt+Space` — configurable under
   Settings → General — opens it centred on the screen. Arrows and `Tab` walk the
   ring, `1`–`9` jump straight to a shortcut, `Home`/`End` go to the ends, `Enter`

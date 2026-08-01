@@ -10,6 +10,7 @@ using CursorBubble.Native;
 using CursorBubble.Overlay;
 using CursorBubble.Responder;
 using CursorBubble.Settings;
+using CursorBubble.Stats;
 using CursorBubble.Tray;
 
 namespace CursorBubble;
@@ -66,6 +67,10 @@ public partial class App : Application
 
         _config = ConfigStore.Load();
 
+        // Before anything can be counted: the preference decides whether the
+        // counters move at all.
+        UsageStatsStore.Enabled = _config.CollectUsageStats;
+
         // Keep the registry autostart entry in sync with the saved preference.
         AutostartManager.Apply(_config.StartWithWindows);
 
@@ -85,7 +90,11 @@ public partial class App : Application
             _tray.ShowError(failure);
 
         _hook = new MouseHook();
-        _hook.MenuOpen += p => Dispatcher.InvokeAsync(() => _overlay!.ShowAt(p));
+        _hook.MenuOpen += p => Dispatcher.InvokeAsync(() =>
+        {
+            _overlay!.ShowAt(p);
+            UsageStatsStore.Record(s => s.RecordOpen(OpenSource.Mouse, DateTime.Now));
+        });
         _hook.MenuMove += p => Dispatcher.InvokeAsync(() => _overlay!.UpdateCursor(p));
         _hook.MenuCommit += () => Dispatcher.InvokeAsync(OnCommit);
 
@@ -181,6 +190,11 @@ public partial class App : Application
         // put this window back in front before the chosen action runs.
         IntPtr previous = NativeMethods.GetForegroundWindow();
         _overlay.ShowCentred(MenuInputMode.Keyboard, previous);
+
+        // After the window is up: recording queues a background write, and
+        // nothing may come between the hotkey message and the overlay taking
+        // the foreground.
+        UsageStatsStore.Record(s => s.RecordOpen(OpenSource.Hotkey, DateTime.Now));
     }
 
     /// <summary>
@@ -223,7 +237,20 @@ public partial class App : Application
     {
         SegmentConfig? segment = _overlay!.Commit();
         if (segment is null)
+        {
+            UsageStatsStore.Record(s => s.RecordCancelled(DateTime.Now));
             return; // cancelled in the dead zone
+        }
+
+        // Counted before it runs, and whatever the outcome: this is a record of
+        // what the user asked for, and a shortcut that keeps failing is worth
+        // seeing in the list rather than quietly missing from it.
+        //
+        // Read out first because a captured local loses its "not null here"
+        // narrowing inside the lambda.
+        string label = segment.Label;
+        ActionType action = segment.Action;
+        UsageStatsStore.Record(s => s.RecordAction(label, action, DateTime.Now));
 
         if (segment.Action == ActionType.ClaudeInbox)
         {
@@ -339,6 +366,8 @@ public partial class App : Application
             return;
         }
 
+        UsageStatsStore.Record(s => s.RecordSettingsOpened(DateTime.Now));
+
         _settings = new SettingsWindow(_config);
         _settings.Saved += OnSettingsSaved;
         _settings.Closed += (_, _) => _settings = null;
@@ -350,6 +379,7 @@ public partial class App : Application
     {
         _config = updated;
         ConfigStore.Save(_config);
+        UsageStatsStore.Enabled = _config.CollectUsageStats;
         _overlay?.Rebuild(_config);
         ApplyMenuHotkey();
         AutostartManager.Apply(_config.StartWithWindows);
@@ -366,6 +396,9 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Info("CursorBubble exiting.");
+        // Counters are written in the background; give the last one its chance
+        // to land before the process goes away.
+        UsageStatsStore.Flush();
         _inboxWatcher?.Dispose();
         _hotkeys?.Dispose();
         _hook?.Dispose();

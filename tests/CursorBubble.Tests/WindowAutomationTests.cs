@@ -130,6 +130,11 @@ public class WindowAutomationTests
     [InlineData(Settings, "DownBtn", "Move the selected segment down")]
     [InlineData(Settings, "NavList", "Settings sections")]
     [InlineData(Settings, "SegmentsList", "Segments")]
+    // The Overview page is three unlabelled lists of generated rows; without a
+    // name each is announced as "list" and nothing else.
+    [InlineData(Settings, "StatTiles", "Usage summary")]
+    [InlineData(Settings, "SegmentBars", "Most used segments")]
+    [InlineData(Settings, "FactList", "Facts about your use")]
     [InlineData(Responder, "RefreshBtn", "Refresh the session list")]
     [InlineData(Responder, "MessageBox", "Message from Claude Code")]
     [InlineData(Responder, "SendBtn", "Send reply")]

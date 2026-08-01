@@ -54,11 +54,19 @@ tray menu you open **Settings**, toggle **Start with Windows**, or exit.
 
 ## Settings
 
-Right-click (or double-click) the tray icon → **Settings…**:
+Right-click (or double-click) the tray icon → **Settings…**. It opens on the
+Overview page, with the rest of the app down the left-hand side:
 
-- **General** — autostart, the keyboard shortcut that opens the bubble, and a
-  short how-to. To change the shortcut, click the field and press the
-  combination you want; `Tab` leaves the field without changing it.
+- **Overview** — what the bubble has actually done for you: how often it has
+  been opened and by which route, how many actions it has run, which segment is
+  your favourite, how many days in a row you have used it, and a rough estimate
+  of the time that saved. Underneath, a ranking of your busiest segments, a
+  handful of facts drawn from the same numbers, and a list of every group of
+  settings — click one to go there.
+- **General** — autostart, the keyboard shortcut that opens the bubble, whether
+  any of this is counted, and a short how-to. To change the shortcut, click the
+  field and press the combination you want; `Tab` leaves the field without
+  changing it.
 - **Layout** — outer/inner radius, start angle, the gap between segments and how
   rounded their corners are.
 - **Segments** — add, edit, remove and reorder segments. Per segment: name,
@@ -67,12 +75,30 @@ Right-click (or double-click) the tray icon → **Settings…**:
   takes priority.
 - **Style** — glass blur (acrylic) on/off, **animate on open**, glass opacity,
   and the glass, accent and text colours.
+- **AI** — your Anthropic key and the Claude model that writes your scripts.
+- **Claude Code** — link the inbox so sessions reach the bubble.
+- **About** — version, where each of your files lives, and the button that
+  deletes your statistics.
 
 The settings window itself has the same glass look: a real acrylic backdrop on
-**Windows 11**, a flat dark theme on **Windows 10**.
+**Windows 11**, a flat dark theme on **Windows 10**. The pages that change how
+the bubble looks — Layout, Segments and Style — carry a **live preview**
+underneath them; the ones that do not get the height back instead. The footer
+says when there is something unsaved, and closing the window with the title bar
+asks before throwing it away.
 
-Everything has a **live preview**. Settings are stored in
-`%APPDATA%\CursorBubble\config.json`.
+Settings are stored in `%APPDATA%\CursorBubble\config.json`.
+
+### What gets counted
+
+The Overview page is filled from `%APPDATA%\CursorBubble\usage.json`: opens
+(split by gesture and shortcut), actions run per segment and per kind, cancels,
+generated scripts, and the days you used it — about a year of them, for the
+streak.
+
+It is a plain file next to your settings. Nothing is sent anywhere: there is no
+network code behind it. Untick **General → Count how often I use the bubble** to
+stop counting, and **About → Delete my statistics** to throw away what is there.
 
 ### Action types
 
@@ -272,11 +298,12 @@ src/CursorBubble/
   App.xaml(.cs)            startup, tray + hook
   Native/                  P/Invoke, mouse hook + gesture, blur helper
   Overlay/                 transparent window + radial glass drawing
-  Settings/                settings window with live preview + AI dialog
+  Settings/                the app window: overview, pages, live preview, AI dialog
   Ai/                      script generation via the Claude API + storage
   ClaudeCode/              hook handler, inbox storage, hook installer
   Responder/               glass window for answering sessions
-  Config/                  model + JSON storage
+  Config/                  model + JSON storage, and what can be configured
+  Stats/                   usage counters + the facts drawn from them
   Input/                   global hotkey: parsing + registration
   Accessibility/           screen-reader announcements
   Controls/                small shared controls
