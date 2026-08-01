@@ -186,7 +186,7 @@ public static class WindowInput
         if (IsIconic(target))
             ShowWindow(target, SW_RESTORE);
 
-        SetForegroundWindow(target);
+        NativeMethods.SetForegroundWindow(target);
         if (WaitForForeground(target))
             return true;
 
@@ -194,7 +194,7 @@ public static class WindowInput
         // which lifts the foreground lock for this call.
         uint thisThread = GetCurrentThreadId();
         uint targetThread = GetWindowThreadProcessId(target, out _);
-        IntPtr foreground = GetForegroundWindow();
+        IntPtr foreground = NativeMethods.GetForegroundWindow();
         uint foregroundThread = foreground == IntPtr.Zero ? 0 : GetWindowThreadProcessId(foreground, out _);
 
         bool attachedForeground = foregroundThread != 0 && foregroundThread != thisThread &&
@@ -204,7 +204,7 @@ public static class WindowInput
         try
         {
             BringWindowToTop(target);
-            SetForegroundWindow(target);
+            NativeMethods.SetForegroundWindow(target);
             return WaitForForeground(target);
         }
         finally
@@ -225,7 +225,7 @@ public static class WindowInput
         return false;
     }
 
-    private static bool IsForeground(IntPtr target) => GetForegroundWindow() == target;
+    private static bool IsForeground(IntPtr target) => NativeMethods.GetForegroundWindow() == target;
 
     // ---- helpers -------------------------------------------------------------
 
@@ -269,7 +269,7 @@ public static class WindowInput
     {
         try
         {
-            GetWindowThreadProcessId(hwnd, out uint pid);
+            _ = GetWindowThreadProcessId(hwnd, out uint pid);
             if (pid == 0)
                 return "";
             using Process p = Process.GetProcessById((int)pid);
@@ -287,7 +287,7 @@ public static class WindowInput
         if (len <= 0)
             return "";
         var sb = new StringBuilder(len + 1);
-        GetWindowText(hwnd, sb, sb.Capacity);
+        _ = GetWindowText(hwnd, sb, sb.Capacity);
         return sb.ToString();
     }
 
@@ -362,12 +362,9 @@ public static class WindowInput
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsIconic(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    // SetForegroundWindow / GetForegroundWindow live in NativeMethods: the
+    // hotkey path needs them too, and two declarations of the same call is two
+    // places for the marshalling to drift.
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

@@ -1,0 +1,59 @@
+name: Bug report
+description: Something behaves differently from what it says it does.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here — see
+        [SECURITY.md](../blob/main/SECURITY.md) for the private route.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+      placeholder: |
+        1. Opened the bubble with the right-drag gesture
+        2. Released on the "Documents" segment
+        3. Expected Explorer to open; nothing happened
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the tray menu, or the exe's file properties. "Built from main" is fine.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        `%APPDATA%\CursorBubble\logs` — today's file, or the lines around the
+        problem. Paths and window titles appear in there, so redact anything
+        you would rather not publish.
+      render: text
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant part of config.json
+      description: |
+        `%APPDATA%\CursorBubble\config.json`, if a specific segment is involved.
+        **Remove `AiApiKeyProtected` before pasting.**
+      render: json

@@ -1,12 +1,12 @@
 <Window x:Class="CursorBubble.Settings.AiScriptDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Genereer script met AI"
+        Title="Generate script with AI"
         Width="620" Height="600"
         MinWidth="560" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         Background="#1B1F27"
-        Icon="pack://application:,,,/Assets/app.ico"
+        Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI">
 
     <Window.Resources>
@@ -18,6 +18,7 @@
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
         </Style>
         <Style TargetType="TextBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="Background" Value="#2A0E1116" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -26,6 +27,7 @@
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="14,7" />
             <Setter Property="Margin" Value="6,0,0,0" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -35,10 +37,18 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
                                 BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <!-- RecognizesAccessKey defaults to false on a bare
+                                 ContentPresenter, which would render "_Save" with a
+                                 literal underscore instead of a mnemonic. -->
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}" />
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
                             </Trigger>
@@ -62,39 +72,49 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Beschrijf wat het script moet doen"
+        <TextBlock Grid.Row="0" x:Name="DescriptionCaption" Text="Describe what the script should do"
                    FontWeight="SemiBold" Margin="0,0,0,6" />
         <TextBox Grid.Row="1" x:Name="DescriptionBox" Height="70"
-                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
+                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.LabeledBy="{Binding ElementName=DescriptionCaption}" />
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
-            <Button x:Name="GenerateBtn" Content="Genereren" Click="GenerateBtn_Click"
+            <Button x:Name="GenerateBtn" Content="_Generate" Click="GenerateBtn_Click"
                     Background="#4C8DFF" Margin="0" />
             <TextBlock x:Name="StatusText" Foreground="{StaticResource SubText}"
+                       AutomationProperties.LiveSetting="Polite"
                        VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
         </StackPanel>
 
         <StackPanel Grid.Row="3" x:Name="ResultInfo" Visibility="Collapsed" Margin="0,14,0,0">
-            <TextBlock Text="Uitleg" FontWeight="SemiBold" Margin="0,0,0,3" />
+            <TextBlock Text="Explanation" FontWeight="SemiBold" Margin="0,0,0,3" />
             <TextBlock x:Name="ExplanationText" Foreground="{StaticResource SubText}" TextWrapping="Wrap" />
             <Border x:Name="WarningBox" Visibility="Collapsed" Margin="0,8,0,0"
                     Background="#3A2A1400" BorderBrush="#66E0A000" BorderThickness="1"
                     CornerRadius="6" Padding="10">
-                <TextBlock x:Name="WarningsText" Foreground="#FFD98A" TextWrapping="Wrap" />
+                <!-- Assertive, not Polite: this is the safety warning about a script
+                     that is about to be written to disk and later run. -->
+                <TextBlock x:Name="WarningsText" Foreground="#FFD98A" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Assertive" />
             </Border>
         </StackPanel>
 
         <DockPanel Grid.Row="4" x:Name="ScriptArea" Visibility="Collapsed" Margin="0,12,0,0">
-            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,3"
-                       Text="Script — lees dit door voordat je het gebruikt:" FontWeight="SemiBold" />
+            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,3" x:Name="ScriptCaption"
+                       Text="Script — read this before you use it:" FontWeight="SemiBold" />
+            <!-- Deliberately no AcceptsTab: it swallowed Tab with no way back out,
+                 which traps keyboard users in the box (WCAG 2.1.2). -->
             <TextBox x:Name="ScriptBox" FontFamily="Consolas, Cascadia Mono, Courier New"
-                     TextWrapping="NoWrap" AcceptsReturn="True" AcceptsTab="True"
+                     TextWrapping="NoWrap" AcceptsReturn="True"
+                     AutomationProperties.LabeledBy="{Binding ElementName=ScriptCaption}"
                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
         </DockPanel>
 
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-            <Button x:Name="CancelBtn" Content="Annuleren" Click="CancelBtn_Click" Margin="0" />
-            <Button x:Name="UseBtn" Content="Gebruiken" Click="UseBtn_Click"
+            <!-- Escape cancels. Deliberately no IsDefault on "Use this": it writes a
+                 script to disk, and the whole point of this dialog is to read it first. -->
+            <Button x:Name="CancelBtn" Content="_Cancel" Click="CancelBtn_Click" Margin="0" IsCancel="True" />
+            <Button x:Name="UseBtn" Content="_Use this" Click="UseBtn_Click"
                     IsEnabled="False" Background="#4C8DFF" />
         </StackPanel>
     </Grid>

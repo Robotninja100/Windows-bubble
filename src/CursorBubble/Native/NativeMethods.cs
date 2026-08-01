@@ -49,7 +49,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
 
     [DllImport("user32.dll")]
@@ -105,6 +105,46 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
+    /// <summary>Recalculate the frame after the extended styles change; without it the change may not take.</summary>
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOZORDER = 0x0004;
+
+    // ---- Global hotkey -------------------------------------------------------
+    // RegisterHotKey rather than a keyboard hook: a WH_KEYBOARD_LL hook is a
+    // global keylogger, and — decisively — SetForegroundWindow's documented
+    // conditions include "the process is processing a hotkey event". That grant
+    // is the only reason a WS_EX_NOACTIVATE overlay can take focus at all.
+    public const int WM_HOTKEY = 0x0312;
+
+    public const uint MOD_ALT = 0x0001;
+    public const uint MOD_CONTROL = 0x0002;
+    public const uint MOD_SHIFT = 0x0004;
+    public const uint MOD_WIN = 0x0008;
+
+    /// <summary>Do not repeat the WM_HOTKEY while the combination is held down.</summary>
+    public const uint MOD_NOREPEAT = 0x4000;
+
+    /// <summary>RegisterHotKey sets this when the combination is already taken by another process.</summary>
+    public const int ERROR_HOTKEY_ALREADY_REGISTERED = 1409;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     // ---- DPI ----------------------------------------------------------------
     public const int MONITOR_DEFAULTTONEAREST = 2;
     public const int MDT_EFFECTIVE_DPI = 0;
@@ -157,9 +197,25 @@ internal static class NativeMethods
     [DllImport("dwmapi.dll")]
     public static extern int DwmEnableBlurBehindWindow(IntPtr hWnd, ref DWM_BLURBEHIND pBlurBehind);
 
-    // GDI region for the circular blur clip.
+    // GDI regions for the blur clip: an ellipse for the plain circular case,
+    // polygons combined with OR when the blur follows the glass segments.
     [DllImport("gdi32.dll")]
     public static extern IntPtr CreateEllipticRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreatePolygonRgn(POINT[] lppt, int cPoints, int fnPolyFillMode);
+
+    [DllImport("gdi32.dll")]
+    public static extern int CombineRgn(IntPtr hrgnDest, IntPtr hrgnSrc1, IntPtr hrgnSrc2, int fnCombineMode);
+
+    /// <summary>PolyFillMode: fill every enclosed area regardless of winding direction.</summary>
+    public const int WINDING = 2;
+
+    /// <summary>CombineRgn mode: union.</summary>
+    public const int RGN_OR = 2;
 
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

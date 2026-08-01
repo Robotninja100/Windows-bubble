@@ -43,11 +43,11 @@ public sealed class StyleConfig
     /// <summary>Glass tint colour as #RRGGBB.</summary>
     public string TintColor { get; set; } = "#FFFFFF";
 
-    /// <summary>Opacity of the tint laid over the acrylic blur (0..1).</summary>
-    public double TintOpacity { get; set; } = 0.30;
-
-    /// <summary>Opacity of the individual segment fills (0..1).</summary>
-    public double SegmentOpacity { get; set; } = 0.35;
+    /// <summary>
+    /// Opacity of the glass itself (0..1): the tint laid over the blurred
+    /// desktop inside each segment. Lower = more see-through.
+    /// </summary>
+    public double TintOpacity { get; set; } = 0.42;
 
     /// <summary>Accent colour for the highlighted segment as #RRGGBB.</summary>
     public string HighlightColor { get; set; } = "#EAF2FF";
@@ -58,7 +58,11 @@ public sealed class StyleConfig
     /// <summary>Use acrylic blur behind the bubble. Falls back to a flat tint if off.</summary>
     public bool UseAcrylicBlur { get; set; } = true;
 
-    /// <summary>Play a short scale + fade animation when the bubble opens.</summary>
+    /// <summary>
+    /// Play the umbrella open animation and the hover lift. The property name is
+    /// part of the persisted JSON, so it stays "Animate" even though it now covers
+    /// both effects.
+    /// </summary>
     public bool Animate { get; set; } = true;
 
     // ---- Layout (device-independent pixels) ----
@@ -69,10 +73,13 @@ public sealed class StyleConfig
     public double InnerRadius { get; set; } = 60;
 
     /// <summary>Angular gap between segments, in degrees (visual separation).</summary>
-    public double SegmentGap { get; set; } = 4;
+    public double SegmentGap { get; set; } = 5;
+
+    /// <summary>Corner rounding of a segment, in DIPs. 0 = sharp wedges.</summary>
+    public double SegmentCornerRadius { get; set; } = 34;
 
     /// <summary>Angle (degrees, clockwise from the top) where the first segment starts.</summary>
-    public double StartAngle { get; set; } = 0;
+    public double StartAngle { get; set; }
 }
 
 /// <summary>
@@ -80,6 +87,22 @@ public sealed class StyleConfig
 /// </summary>
 public sealed class AppConfig
 {
+    /// <summary>
+    /// The layout this file was written with. Bumped only when a change cannot
+    /// be expressed additively — a rename, a restructure, a changed meaning.
+    ///
+    /// Everything so far has been additive, so a file with no version at all is
+    /// simply version 1: <c>ConfigStore</c> reads unknown properties as absent
+    /// and missing ones as their defaults, which is why adding a setting has
+    /// never needed a migration. The number exists so the first change that
+    /// <em>does</em> break that has somewhere to hook in, instead of silently
+    /// resetting settings someone spent time on.
+    /// </summary>
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
+    /// <summary>The version this build writes.</summary>
+    public const int CurrentSchemaVersion = 1;
+
     public ObservableCollection<SegmentConfig> Segments { get; set; } = new();
 
     public StyleConfig Style { get; set; } = new();
@@ -115,6 +138,14 @@ public sealed class AppConfig
     public string AiModel { get; set; } = "claude-opus-5";
 
     /// <summary>
+    /// Global hotkey that opens the bubble at the centre of the active screen,
+    /// in keyboard mode. Stored as text (e.g. "Ctrl+Alt+Space") so config.json
+    /// stays hand-editable; parsed with <c>HotkeySpec.ParseOrDefault</c>, which
+    /// falls back to the default rather than leaving the user with no hotkey.
+    /// </summary>
+    public string MenuHotkey { get; set; } = "Ctrl+Alt+Space";
+
+    /// <summary>
     /// A sensible starter configuration so the bubble is useful on first run.
     /// </summary>
     public static AppConfig CreateDefault()
@@ -122,38 +153,38 @@ public sealed class AppConfig
         var cfg = new AppConfig();
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Documenten\nopenen", Glyph = "",
+            Label = "Open\nDocuments", Glyph = "",
             Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Webbrowser\nstarten", Glyph = "",
+            Label = "Open\nBrowser", Glyph = "",
             Action = ActionType.OpenPath, Target = "https://www.google.com"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Rekenmachine", Glyph = "",
+            Label = "Calculator", Glyph = "",
             Action = ActionType.LaunchProgram, Target = "calc.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Draai Back-up\nScript", Glyph = "",
+            Label = "Run Backup\nScript", Glyph = "",
             Action = ActionType.RunScript,
-            Target = "powershell -NoProfile -Command \"Write-Host 'Vervang dit door je eigen back-up script'\""
+            Target = "powershell -NoProfile -Command \"Write-Host 'Replace this with your own backup script'\""
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "PowerShell\nopenen", Glyph = "",
+            Label = "Open\nPowerShell", Glyph = "",
             Action = ActionType.LaunchProgram, Target = "powershell.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Instellingen\nopenen", Glyph = "",
+            Label = "Open\nSettings", Glyph = "",
             Action = ActionType.OpenPath, Target = "ms-settings:"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Claude Code",
+            Label = "Claude Code", Glyph = "",
             Action = ActionType.ClaudeInbox
         });
         return cfg;

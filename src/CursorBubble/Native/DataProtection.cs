@@ -56,9 +56,9 @@ public static class DataProtection
         if (cipher is null)
         {
             throw new CryptographicException(
-                $"Windows kon de sleutel niet versleutelen (DPAPI-fout {error}). " +
-                "De sleutel is niet opgeslagen — hij onversleuteld wegschrijven zou " +
-                "de belofte van dit veld breken.");
+                $"Windows could not encrypt the key (DPAPI error {error}). " +
+                "The key has not been saved: writing it unprotected would break the " +
+                "promise this field makes.");
         }
 
         return Convert.ToBase64String(cipher);

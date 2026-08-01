@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace CursorBubble.ClaudeCode;
@@ -48,18 +49,37 @@ public sealed class InboxRecord
     // ---- display helpers (not persisted) ----
 
     [JsonIgnore]
-    public string StateText => State == SessionState.Waiting ? "Wacht op je" : "Klaar";
+    public string StateText => State == SessionState.Waiting ? "Waiting for you" : "Finished";
 
     [JsonIgnore]
-    public string DisplayProject => string.IsNullOrWhiteSpace(ProjectName) ? "(onbekend project)" : ProjectName;
+    public string DisplayProject => string.IsNullOrWhiteSpace(ProjectName) ? "(unknown project)" : ProjectName;
 
     [JsonIgnore]
     public string Snippet
     {
         get
         {
-            string oneLine = Message.Replace("\r", " ").Replace("\n", " ").Trim();
+            // Collapse every run of whitespace, not just the individual newline
+            // characters: replacing "\r" and "\n" one at a time turns each CRLF
+            // — which is every line break on Windows — into a double space.
+            string oneLine = string.Join(' ', Message.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
             return oneLine.Length <= 70 ? oneLine : oneLine[..70] + "…";
+        }
+    }
+
+    /// <summary>
+    /// The whole list item as one sentence, for <c>AutomationProperties.Name</c>.
+    /// The item template stacks four separate TextBlocks, which a screen reader
+    /// otherwise reads as run-together fragments with no punctuation between them.
+    /// </summary>
+    [JsonIgnore]
+    public string AccessibleSummary
+    {
+        get
+        {
+            string when = WhenLocal;
+            string time = when.Length == 0 ? "" : $", {when}";
+            return $"{DisplayProject}. {StateText}{time}. {Snippet}";
         }
     }
 
@@ -68,9 +88,10 @@ public sealed class InboxRecord
     {
         get
         {
-            if (DateTime.TryParse(Timestamp, null,
-                    System.Globalization.DateTimeStyles.RoundtripKind, out DateTime dt))
-                return dt.ToLocalTime().ToString("HH:mm");
+            if (DateTime.TryParse(Timestamp, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out DateTime dt))
+                // Shown to the user, so their own clock format is the right one.
+                return dt.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture);
             return "";
         }
     }

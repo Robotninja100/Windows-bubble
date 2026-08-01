@@ -38,7 +38,6 @@ public sealed class MouseHook : IDisposable
     private State _state = State.Idle;
     private bool _leftDown;
     private bool _rightDown;
-    private NativeMethods.POINT _rightDownPoint;
 
     /// <summary>Raised when the gesture opens the menu. Argument: cursor position.</summary>
     public event Action<ScreenPoint>? MenuOpen;
@@ -88,14 +87,16 @@ public sealed class MouseHook : IDisposable
         if ((data.flags & NativeMethods.LLMHF_INJECTED) != 0)
             return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
 
-        int msg = (int)wParam;
+        // Kept 64-bit: narrowing IntPtr to int here would be a conversion whose
+        // overflow behaviour changed in .NET 7, and the switch labels below are
+        // int constants that widen to long on their own.
+        long msg = wParam.ToInt64();
         bool swallow = false;
 
         switch (msg)
         {
             case NativeMethods.WM_RBUTTONDOWN:
                 _rightDown = true;
-                _rightDownPoint = data.pt;
                 if (_state == State.Idle)
                 {
                     // Hold the right-down back until we know whether the user
@@ -199,7 +200,7 @@ public sealed class MouseHook : IDisposable
                 mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_RIGHTUP }
             }
         };
-        NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+        _ = NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
     }
 
     public void Dispose() => Uninstall();

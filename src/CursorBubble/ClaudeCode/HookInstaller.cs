@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -12,9 +13,20 @@ namespace CursorBubble.ClaudeCode;
 /// </summary>
 public static class HookInstaller
 {
-    private static readonly string SettingsPath = Path.Combine(
+    private static readonly string DefaultSettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".claude", "settings.json");
+
+    /// <summary>
+    /// The file to merge into. Settable so the tests can exercise the file-level
+    /// behaviour against a temp directory instead of the developer's real
+    /// Claude Code configuration — which is precisely the part that used to be
+    /// untested, and precisely the part that could destroy data.
+    /// </summary>
+    internal static string SettingsPath { get; set; } = DefaultSettingsPath;
+
+    /// <summary>How many backups of the user's settings.json to keep.</summary>
+    private const int BackupsKept = 3;
 
     // Events we hook into.
     private static readonly string[] Events = { "Stop", "Notification" };
@@ -42,9 +54,15 @@ public static class HookInstaller
     /// <summary>Add our hooks to Stop and Notification (idempotent).</summary>
     public static void Install()
     {
-        JsonObject root = LoadOrRefuse();
+        JsonObject root = Load();
+        AddHooks(root, HookCommand());
+        Save(root);
+    }
+
+    /// <summary>Internal for tests: the pure merge, with no file access.</summary>
+    internal static void AddHooks(JsonObject root, string command)
+    {
         JsonObject hooks = GetOrCreateObject(root, "hooks");
-        string command = HookCommand();
 
         foreach (string ev in Events)
         {
@@ -61,14 +79,19 @@ public static class HookInstaller
                 })
             });
         }
-
-        Save(root);
     }
 
     /// <summary>Remove any hook groups that invoke CursorBubble.</summary>
     public static void Uninstall()
     {
-        JsonObject root = LoadOrRefuse();
+        JsonObject root = Load();
+        RemoveHooks(root);
+        Save(root);
+    }
+
+    /// <summary>Internal for tests: the pure removal, with no file access.</summary>
+    internal static void RemoveHooks(JsonObject root)
+    {
         if (root["hooks"] is not JsonObject hooks)
             return;
 
@@ -83,13 +106,12 @@ public static class HookInstaller
                     groups.RemoveAt(i);
             }
         }
-
-        Save(root);
     }
 
     // ---- helpers -------------------------------------------------------------
 
-    private static bool EventHasOurHook(JsonObject root, string ev)
+    /// <summary>Internal for tests: is one of our hooks already registered?</summary>
+    internal static bool EventHasOurHook(JsonObject root, string ev)
         => root["hooks"] is JsonObject hooks &&
            hooks[ev] is JsonArray groups &&
            ContainsOurCommand(groups);
@@ -121,49 +143,110 @@ public static class HookInstaller
     }
 
     /// <summary>
-    /// Read <c>~/.claude/settings.json</c>.
+    /// Read the user's settings.json.
     ///
-    /// Returns an empty object when the file does not exist yet — that is a
-    /// first link, and writing a fresh object is correct. Returns <c>null</c>
-    /// when the file <em>does</em> exist but cannot be read or is not a JSON
-    /// object, which callers that intend to write must treat as a stop signal.
+    /// A missing file is fine — that is a first run, and an empty object is the
+    /// right starting point. A file that exists but cannot be read as a JSON
+    /// object is <em>not</em> fine: this used to fall through to a fresh empty
+    /// object, which <see cref="Save"/> then wrote straight over the top,
+    /// silently replacing everything the user had in there. Refuse instead, and
+    /// say why.
     /// </summary>
-    private static JsonObject? Load()
+    private static JsonObject Load()
     {
         if (!File.Exists(SettingsPath))
             return new JsonObject();
 
+        string text;
         try
         {
-            return JsonNode.Parse(File.ReadAllText(SettingsPath)) as JsonObject;
+            text = File.ReadAllText(SettingsPath);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            throw new InvalidOperationException(
+                $"Could not read {SettingsPath}: {ex.Message}", ex);
         }
+
+        // An empty file is a plausible half-written state, and treating it as
+        // "nothing to preserve" is safe — there is nothing in it to lose.
+        if (string.IsNullOrWhiteSpace(text))
+            return new JsonObject();
+
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(text);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"{SettingsPath} is not valid JSON, so it was left untouched. " +
+                $"Fix or move the file and try again. ({ex.Message})", ex);
+        }
+
+        if (node is not JsonObject obj)
+        {
+            throw new InvalidOperationException(
+                $"{SettingsPath} does not contain a JSON object, so it was left untouched. " +
+                "Fix or move the file and try again.");
+        }
+
+        return obj;
     }
 
     /// <summary>
-    /// <see cref="Load"/> for the write paths, refusing rather than starting
-    /// from a blank object.
+    /// Write the merged settings back, via a backup and a temp file.
     ///
-    /// This used to fall back to an empty object on any read error, and
-    /// <see cref="Install"/> then saved that over the file — so one unreadable
-    /// read deleted every Claude Code setting the user had, in order to add a
-    /// hook. Linking is a convenience; someone's editor config, permissions and
-    /// MCP servers are not. When in doubt, change nothing.
+    /// This is somebody else's configuration file, so the two failure modes
+    /// worth engineering against are "we wrote the wrong thing" (recoverable
+    /// from the backup) and "we died half way through the write" (impossible,
+    /// because the move is atomic).
     /// </summary>
-    private static JsonObject LoadOrRefuse()
-        => Load() ?? throw new InvalidOperationException(
-            $"{SettingsPath} kon niet gelezen worden. Er is niets gewijzigd, zodat je " +
-            "bestaande Claude Code-instellingen niet overschreven worden. Controleer of " +
-            "het bestand geldige JSON bevat en probeer het opnieuw.");
-
     private static void Save(JsonObject root)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        string dir = Path.GetDirectoryName(SettingsPath)!;
+        Directory.CreateDirectory(dir);
+
+        BackUp();
+
+        // Via AtomicFile rather than a local temp-and-move: same shape, but it
+        // also flushes the OS buffers before the move. Without that the move can
+        // complete while the new content is still only in the page cache, which
+        // is the case a power cut turns into a zero-length settings.json.
         var options = new JsonSerializerOptions { WriteIndented = true };
         AtomicFile.WriteAllText(SettingsPath, root.ToJsonString(options));
+    }
+
+    /// <summary>
+    /// Copy the current settings.json aside before overwriting it, keeping the
+    /// newest <see cref="BackupsKept"/>. Never throws: failing to take a backup
+    /// is not a reason to refuse to link.
+    /// </summary>
+    private static void BackUp()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath))
+                return;
+
+            string stamp = DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+            File.Copy(SettingsPath, $"{SettingsPath}.cursorbubble-backup-{stamp}", overwrite: true);
+
+            string dir = Path.GetDirectoryName(SettingsPath)!;
+            string prefix = Path.GetFileName(SettingsPath) + ".cursorbubble-backup-";
+
+            foreach (string old in Directory.EnumerateFiles(dir, prefix + "*")
+                                            .OrderByDescending(p => p, StringComparer.Ordinal)
+                                            .Skip(BackupsKept))
+            {
+                File.Delete(old);
+            }
+        }
+        catch
+        {
+            // Best effort. The atomic write below is the real protection.
+        }
     }
 
     private static JsonObject GetOrCreateObject(JsonObject parent, string key)

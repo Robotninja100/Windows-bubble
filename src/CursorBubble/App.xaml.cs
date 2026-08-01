@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows;
 using CursorBubble.Actions;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
+using CursorBubble.Diagnostics;
+using CursorBubble.Input;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
 using CursorBubble.Responder;
@@ -16,10 +19,13 @@ namespace CursorBubble;
 /// global mouse hook, owns the single reusable overlay window and routes the
 /// gesture to the radial menu and its actions.
 /// </summary>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "A WPF Application is torn down through OnExit, which disposes all of these.")]
 public partial class App : Application
 {
     private Mutex? _singleInstance;
     private MouseHook? _hook;
+    private HotkeyManager? _hotkeys;
     private RadialMenuWindow? _overlay;
     private TrayIcon? _tray;
     private SettingsWindow? _settings;
@@ -33,6 +39,8 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        InstallCrashHandlers();
+
         // Hook mode: launched by Claude Code with piped JSON on stdin. Record the
         // session and exit without any UI (and before the single-instance mutex).
         if (e.Args.Length > 0 && e.Args[0] == "--hook")
@@ -43,6 +51,10 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+
+        Log.Prune();
+        InboxStore.Prune();
+        Log.Info($"CursorBubble starting (v{typeof(App).Assembly.GetName().Version}).");
 
         // Only allow one running instance.
         _singleInstance = new Mutex(initiallyOwned: true, "CursorBubble.SingleInstance", out bool created);
@@ -58,6 +70,8 @@ public partial class App : Application
         AutostartManager.Apply(_config.StartWithWindows);
 
         _overlay = new RadialMenuWindow(_config);
+        // Keyboard mode has no button release to commit on, so the window tells us.
+        _overlay.CommitRequested += OnCommit;
 
         _tray = new TrayIcon(_config.StartWithWindows);
         _tray.SettingsRequested += OpenSettings;
@@ -74,9 +88,135 @@ public partial class App : Application
         _hook.MenuOpen += p => Dispatcher.InvokeAsync(() => _overlay!.ShowAt(p));
         _hook.MenuMove += p => Dispatcher.InvokeAsync(() => _overlay!.UpdateCursor(p));
         _hook.MenuCommit += () => Dispatcher.InvokeAsync(OnCommit);
-        _hook.Install();
+
+        try
+        {
+            _hook.Install();
+        }
+        catch (Exception ex)
+        {
+            // Without the hook the gesture can never fire, but the tray icon and
+            // settings still work — tell the user instead of crashing on startup.
+            Log.Error("Failed to install the global mouse hook.", ex);
+            _tray.ShowError("Could not enable the mouse gesture: " + ex.Message);
+        }
+
+        InstallMenuHotkey();
 
         StartInboxWatcher();
+    }
+
+    /// <summary>
+    /// Register the configured global hotkey. Never throws: without it the mouse
+    /// gesture still works, so a taken combination is a warning, not a crash.
+    /// </summary>
+    private void InstallMenuHotkey()
+    {
+        HotkeySpec spec = HotkeySpec.ParseOrDefault(_config.MenuHotkey, HotkeySpec.Default);
+
+        try
+        {
+            _hotkeys = new HotkeyManager();
+            _hotkeys.Pressed += OnMenuHotkey;
+
+            if (!_hotkeys.TryRebind(spec, out string error))
+            {
+                Log.Warn("Could not register the menu hotkey: " + error);
+                _tray?.ShowError(error + " Change it under Settings → General.");
+            }
+            else
+            {
+                Log.Info($"Menu hotkey registered: {spec}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to set up the menu hotkey.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Rebind after the user edited the hotkey in settings. Reports a conflict
+    /// through the tray, since the settings window has already closed by then.
+    /// </summary>
+    private void ApplyMenuHotkey()
+    {
+        if (_hotkeys is null) return;
+
+        HotkeySpec spec = HotkeySpec.ParseOrDefault(_config.MenuHotkey, HotkeySpec.Default);
+        if (_hotkeys.Current == spec) return;
+
+        if (_hotkeys.TryRebind(spec, out string error))
+            Log.Info($"Menu hotkey rebound to {spec}.");
+        else
+            _tray?.ShowError(error + " The previous hotkey is still active.");
+    }
+
+    /// <summary>
+    /// The global hotkey fired. Deliberately synchronous: this runs inside the
+    /// WM_HOTKEY turn, and that is the only window in which SetForegroundWindow
+    /// is allowed to hand focus to the overlay.
+    /// </summary>
+    private void OnMenuHotkey()
+    {
+        if (_overlay is null) return;
+
+        if (_overlay.IsOpen)
+        {
+            if (_overlay.InputMode == MenuInputMode.Keyboard)
+            {
+                // A second press closes it, so the hotkey is a toggle.
+                _overlay.CancelMenu();
+            }
+            else
+            {
+                // A mouse gesture is in progress; taking it over would leave the
+                // hook waiting for a button release that no longer means anything.
+                Log.Info("Menu hotkey ignored: a mouse gesture is in progress.");
+            }
+            return;
+        }
+
+        // Captured before anything is shown, and handed to the overlay so it can
+        // put this window back in front before the chosen action runs.
+        IntPtr previous = NativeMethods.GetForegroundWindow();
+        _overlay.ShowCentred(MenuInputMode.Keyboard, previous);
+    }
+
+    /// <summary>
+    /// Catch what would otherwise kill the app silently. A tray app has no
+    /// window to show a crash in, so an unhandled exception just makes the icon
+    /// disappear with no clue as to why.
+    /// </summary>
+    private void InstallCrashHandlers()
+    {
+        // UI-thread exceptions are usually local to one action (a dialog, a
+        // click handler). Log it, tell the user, and keep the app alive rather
+        // than tearing down a background process they rely on.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log.Error("Unhandled exception on the UI thread.", args.Exception);
+            args.Handled = true;
+            try
+            {
+                _tray?.ShowError("Something went wrong: " + args.Exception.Message);
+            }
+            catch
+            {
+                // the tray icon itself may be the thing that failed
+            }
+        };
+
+        // Nothing can be done about these — the runtime is going down anyway.
+        // Getting them on disk first is the whole point.
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Log.Error("Unhandled exception, the process is terminating.", args.ExceptionObject as Exception);
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Log.Error("Faulted task with nobody observing it.", args.Exception);
+            args.SetObserved();
+        };
     }
 
     private void OnCommit()
@@ -93,7 +233,10 @@ public partial class App : Application
 
         string? error = ActionRunner.Run(segment);
         if (error is not null)
+        {
+            Log.Warn($"Action for '{segment.Label}' failed: {error}");
             _tray?.ShowError(error);
+        }
     }
 
     private void OpenResponder()
@@ -138,9 +281,10 @@ public partial class App : Application
             // else would ever re-arm it.
             _inboxWatcher.Error += (_, _) => Dispatcher.InvokeAsync(RestartInboxWatcher);
         }
-        catch
+        catch (Exception ex)
         {
             // watcher is optional — the bubble badge still reflects the count on open
+            Log.Warn("Could not watch the inbox folder; tray notifications are off.", ex);
         }
     }
 
@@ -180,8 +324,8 @@ public partial class App : Application
 
         Dispatcher.InvokeAsync(() =>
         {
-            string what = record.State == SessionState.Waiting ? "wacht op je" : "is klaar";
-            string project = string.IsNullOrWhiteSpace(record.ProjectName) ? "een sessie" : record.ProjectName;
+            string what = record.State == SessionState.Waiting ? "is waiting for you" : "has finished";
+            string project = string.IsNullOrWhiteSpace(record.ProjectName) ? "A session" : record.ProjectName;
             _tray?.ShowInfo("Claude Code", $"{project} {what}.");
             _responder?.ReloadInbox();
         });
@@ -207,6 +351,7 @@ public partial class App : Application
         _config = updated;
         ConfigStore.Save(_config);
         _overlay?.Rebuild(_config);
+        ApplyMenuHotkey();
         AutostartManager.Apply(_config.StartWithWindows);
         _tray?.SetAutostartChecked(_config.StartWithWindows);
     }
@@ -220,7 +365,9 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Log.Info("CursorBubble exiting.");
         _inboxWatcher?.Dispose();
+        _hotkeys?.Dispose();
         _hook?.Dispose();
         _tray?.Dispose();
         _overlay?.Close();

@@ -39,7 +39,8 @@ public static class ScriptStore
         return path;
     }
 
-    private static string Sanitize(string name)
+    /// <summary>Internal for tests: reduce a label to something safe for a file name.</summary>
+    internal static string Sanitize(string name)
     {
         var sb = new StringBuilder();
         foreach (char c in name.Trim())

@@ -85,7 +85,7 @@ public sealed class TrayIcon : IDisposable
     {
         try
         {
-            var uri = new Uri("pack://application:,,,/Assets/app.ico");
+            var uri = new Uri("pack://application:,,,/CursorBubble;component/Assets/app.ico");
             System.Windows.Resources.StreamResourceInfo? info = System.Windows.Application.GetResourceStream(uri);
             if (info is not null)
             {

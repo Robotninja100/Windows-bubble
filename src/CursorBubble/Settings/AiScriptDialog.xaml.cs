@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Accessibility;
 using CursorBubble.Ai;
 using CursorBubble.Native;
 
@@ -39,26 +40,29 @@ public partial class AiScriptDialog : Window
         string description = DescriptionBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(description))
         {
-            StatusText.Text = "Beschrijf eerst wat het script moet doen.";
+            Announce.Text(StatusText, "Describe what the script should do first.");
             return;
         }
 
         GenerateBtn.IsEnabled = false;
         UseBtn.IsEnabled = false;
-        StatusText.Text = "Bezig met genereren…";
+        Announce.Text(StatusText, "Generating…");
 
         try
         {
             GeneratedScript result = await ScriptGenerator.GenerateAsync(_apiKey, _model, description);
 
             ExplanationText.Text = string.IsNullOrWhiteSpace(result.Explanation)
-                ? "(geen uitleg gegeven)"
+                ? "(no explanation given)"
                 : result.Explanation;
 
             if (!string.IsNullOrWhiteSpace(result.Warnings))
             {
                 WarningsText.Text = result.Warnings;
                 WarningBox.Visibility = Visibility.Visible;
+                // The box was Collapsed a moment ago, so it has no automation peer
+                // until a layout pass has run — hence the deferred raise.
+                Announce.LiveRegionWhenShown(WarningsText);
             }
             else
             {
@@ -69,11 +73,11 @@ public partial class AiScriptDialog : Window
             ResultInfo.Visibility = Visibility.Visible;
             ScriptArea.Visibility = Visibility.Visible;
             UseBtn.IsEnabled = true;
-            StatusText.Text = "Klaar — controleer het script hieronder.";
+            Announce.Text(StatusText, "Done — review the script below.");
         }
         catch (Exception ex)
         {
-            StatusText.Text = ex.Message;
+            Announce.Text(StatusText, ex.Message);
         }
         finally
         {
@@ -86,7 +90,7 @@ public partial class AiScriptDialog : Window
         string script = ScriptBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(script))
         {
-            StatusText.Text = "Er is geen script om te gebruiken.";
+            Announce.Text(StatusText, "There is no script to use.");
             return;
         }
         ResultScript = script;
