@@ -53,6 +53,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         Log.Prune();
+        InboxStore.Prune();
         Log.Info($"CursorBubble starting (v{typeof(App).Assembly.GetName().Version}).");
 
         // Only allow one running instance.

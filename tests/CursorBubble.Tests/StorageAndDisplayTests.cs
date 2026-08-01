@@ -1,7 +1,11 @@
+using System.IO;
 using CursorBubble.Ai;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Native;
 using Xunit;
+// WPF's implicit usings bring in System.Windows.Shapes.Path, so plain "Path"
+// would be ambiguous in this project.
+using Path = System.IO.Path;
 
 namespace CursorBubble.Tests;
 
@@ -148,5 +152,96 @@ public class InboxRecordTests
 
         // No stray comma before the full stop when the timestamp is unparseable.
         Assert.Equal("demo. Finished. done", record.AccessibleSummary);
+    }
+}
+
+/// <summary>
+/// The inbox directory itself: what the badge counts, and what gets cleaned up.
+/// Runs against a temp directory, never the real %APPDATA% inbox.
+/// </summary>
+public sealed class InboxStoreTests : IDisposable
+{
+    private readonly string _original;
+
+    public InboxStoreTests()
+    {
+        _original = InboxStore.Dir;
+        InboxStore.Dir = Path.Combine(Path.GetTempPath(), "cursorbubble-inbox-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(InboxStore.Dir);
+    }
+
+    public void Dispose()
+    {
+        string dir = InboxStore.Dir;
+        InboxStore.Dir = _original;
+        try { Directory.Delete(dir, recursive: true); } catch { /* temp dir */ }
+    }
+
+    private static void Write(string name, string json)
+        => File.WriteAllText(Path.Combine(InboxStore.Dir, name + ".json"), json);
+
+    [Fact]
+    public void The_badge_counts_the_same_sessions_the_list_shows()
+    {
+        // The regression: the badge counted files while LoadAll skipped ones it
+        // could not parse, so it could read higher than the responder's list.
+        InboxStore.Save(new InboxRecord { SessionId = "a", Message = "one" });
+        InboxStore.Save(new InboxRecord { SessionId = "b", Message = "two" });
+        Write("corrupt", "{ this is not json");
+
+        Assert.Equal(2, InboxStore.LoadAll().Count);
+        Assert.Equal(2, InboxStore.UnansweredCount());
+    }
+
+    [Fact]
+    public void A_record_with_no_session_id_counts_for_nothing()
+    {
+        Write("empty", """{ "Message": "orphan" }""");
+
+        Assert.Equal(0, InboxStore.UnansweredCount());
+    }
+
+    [Fact]
+    public void An_empty_inbox_counts_zero()
+    {
+        Assert.Equal(0, InboxStore.UnansweredCount());
+    }
+
+    [Fact]
+    public void Old_records_are_pruned_and_recent_ones_are_kept()
+    {
+        InboxStore.Save(new InboxRecord { SessionId = "fresh", Message = "today" });
+        InboxStore.Save(new InboxRecord { SessionId = "stale", Message = "ages ago" });
+
+        string stale = Path.Combine(InboxStore.Dir, "stale.json");
+        File.SetLastWriteTimeUtc(stale, DateTime.UtcNow.AddDays(-30));
+
+        InboxStore.Prune(maxAgeDays: 14);
+
+        Assert.False(File.Exists(stale));
+        Assert.Single(InboxStore.LoadAll());
+    }
+
+    [Fact]
+    public void Pruning_clears_out_a_file_too_corrupt_to_read()
+    {
+        // Nothing else ever removes these, and they are read on every open.
+        Write("junk", "{ broken");
+        string junk = Path.Combine(InboxStore.Dir, "junk.json");
+        File.SetLastWriteTimeUtc(junk, DateTime.UtcNow.AddDays(-30));
+
+        InboxStore.Prune(maxAgeDays: 14);
+
+        Assert.False(File.Exists(junk));
+    }
+
+    [Fact]
+    public void Pruning_a_directory_that_does_not_exist_is_a_no_op()
+    {
+        Directory.Delete(InboxStore.Dir, recursive: true);
+
+        InboxStore.Prune();
+
+        Assert.Equal(0, InboxStore.UnansweredCount());
     }
 }

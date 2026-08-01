@@ -87,6 +87,22 @@ public sealed class StyleConfig
 /// </summary>
 public sealed class AppConfig
 {
+    /// <summary>
+    /// The layout this file was written with. Bumped only when a change cannot
+    /// be expressed additively — a rename, a restructure, a changed meaning.
+    ///
+    /// Everything so far has been additive, so a file with no version at all is
+    /// simply version 1: <c>ConfigStore</c> reads unknown properties as absent
+    /// and missing ones as their defaults, which is why adding a setting has
+    /// never needed a migration. The number exists so the first change that
+    /// <em>does</em> break that has somewhere to hook in, instead of silently
+    /// resetting settings someone spent time on.
+    /// </summary>
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
+    /// <summary>The version this build writes.</summary>
+    public const int CurrentSchemaVersion = 1;
+
     public ObservableCollection<SegmentConfig> Segments { get; set; } = new();
 
     public StyleConfig Style { get; set; } = new();

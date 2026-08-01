@@ -11,9 +11,16 @@ namespace CursorBubble.ClaudeCode;
 /// </summary>
 public static class InboxStore
 {
-    public static readonly string Dir = Path.Combine(
+    private static readonly string DefaultDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CursorBubble", "inbox");
+
+    /// <summary>
+    /// Where the pending-session records live. Settable only from the tests, so
+    /// counting and pruning can be exercised against a temp directory instead of
+    /// the developer's real inbox.
+    /// </summary>
+    public static string Dir { get; internal set; } = DefaultDir;
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -84,17 +91,51 @@ public static class InboxStore
         return list;
     }
 
-    public static int UnansweredCount()
+    /// <summary>
+    /// How many pending sessions the badge should show.
+    ///
+    /// Counts records that actually load, not files on disk: <see cref="LoadAll"/>
+    /// skips ones that fail to parse, so counting files made the badge read
+    /// higher than the list the responder then showed. The inbox holds one small
+    /// file per pending session and <see cref="Prune"/> keeps it that way, so
+    /// reading them is cheap enough for the bubble-open path.
+    /// </summary>
+    public static int UnansweredCount() => LoadAll().Count;
+
+    /// <summary>
+    /// Delete records older than <paramref name="maxAgeDays"/>.
+    ///
+    /// Nothing else ever removes a session that the user did not answer or
+    /// dismiss, so without this the directory only grows — and every entry in it
+    /// is read on each bubble open. Mirrors <c>Log.Prune</c>; never throws.
+    /// </summary>
+    public static void Prune(int maxAgeDays = 14)
     {
         if (!Directory.Exists(Dir))
-            return 0;
+            return;
+
+        DateTime cutoff = DateTime.UtcNow.AddDays(-maxAgeDays);
+
         try
         {
-            return Directory.EnumerateFiles(Dir, "*.json").Count();
+            foreach (string file in Directory.EnumerateFiles(Dir, "*.json"))
+            {
+                try
+                {
+                    // Write time rather than the record's own timestamp: a file
+                    // too corrupt to parse is exactly the one worth clearing out.
+                    if (File.GetLastWriteTimeUtc(file) < cutoff)
+                        File.Delete(file);
+                }
+                catch
+                {
+                    // in use, or gone already — leave it for next time
+                }
+            }
         }
         catch
         {
-            return 0;
+            // the directory itself became unreadable; nothing sensible to do
         }
     }
 

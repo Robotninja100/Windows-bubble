@@ -120,6 +120,39 @@ public class ConfigStoreTests
     }
 
     [Fact]
+    public void A_config_written_before_the_schema_version_existed_is_version_1()
+    {
+        // Every change so far has been additive, so files with no version at all
+        // genuinely are version 1. Treating them as version 0 — or as unknown —
+        // would send them down a migration path they do not need.
+        AppConfig? loaded = ConfigStore.Deserialize("""{ "StartWithWindows": true }""");
+
+        Assert.NotNull(loaded);
+        Assert.Equal(AppConfig.CurrentSchemaVersion, loaded!.SchemaVersion);
+        Assert.True(loaded.StartWithWindows);
+    }
+
+    [Fact]
+    public void A_config_from_a_newer_build_keeps_its_own_version()
+    {
+        // Stamping it down would claim we understand a layout we have never
+        // seen. Unknown properties are ignored either way.
+        AppConfig? loaded = ConfigStore.Deserialize("""{ "SchemaVersion": 99, "SomethingNew": true }""");
+
+        Assert.Equal(99, loaded!.SchemaVersion);
+    }
+
+    [Fact]
+    public void The_schema_version_survives_a_round_trip()
+    {
+        AppConfig config = AppConfig.CreateDefault();
+
+        AppConfig? loaded = ConfigStore.Deserialize(ConfigStore.Serialize(config));
+
+        Assert.Equal(AppConfig.CurrentSchemaVersion, loaded!.SchemaVersion);
+    }
+
+    [Fact]
     public void The_hotkey_persists_as_readable_text()
     {
         AppConfig original = AppConfig.CreateDefault();

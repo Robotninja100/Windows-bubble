@@ -1,5 +1,8 @@
 using System.IO;
 using System.Text.Json.Nodes;
+// WPF's implicit usings bring in System.Windows.Shapes.Path, so plain "Path"
+// would be ambiguous in this project.
+using Path = System.IO.Path;
 using CursorBubble.ClaudeCode;
 using Xunit;
 
