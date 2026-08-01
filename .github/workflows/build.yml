@@ -36,14 +36,37 @@ jobs:
         run: >
           dotnet test CursorBubble.sln -c Release --no-build
           --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
           --results-directory TestResults
+
+      # Line coverage, reported but not enforced. A threshold is only worth
+      # setting once the number is known — the UI layer is untested, so a gate
+      # picked today would encode that rather than improve on it.
+      - name: Coverage summary
+        if: always()
+        shell: pwsh
+        run: |
+          $report = Get-ChildItem TestResults -Recurse -Filter coverage.cobertura.xml |
+                    Select-Object -First 1
+          if (-not $report) {
+            Write-Host "No coverage report was produced."
+            exit 0
+          }
+          [xml]$xml = Get-Content $report.FullName
+          $lines = [double]$xml.coverage.'line-rate' * 100
+          $branches = [double]$xml.coverage.'branch-rate' * 100
+          $text = "Line coverage: {0:N1}%  ·  Branch coverage: {1:N1}%" -f $lines, $branches
+          Write-Host $text
+          "### Coverage`n`n$text" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            TestResults/**/coverage.cobertura.xml
           if-no-files-found: warn
 
       - name: Publish single-file exe
