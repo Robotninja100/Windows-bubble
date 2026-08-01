@@ -5,62 +5,11 @@
         Width="620" Height="600"
         MinWidth="560" MinHeight="520"
         WindowStartupLocation="CenterOwner"
-        Background="#1B1F27"
+        Background="{StaticResource WindowBg}"
         Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI">
 
-    <Window.Resources>
-        <SolidColorBrush x:Key="PanelText" Color="#EAEEF6" />
-        <SolidColorBrush x:Key="SubText" Color="#9AA4B4" />
-        <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
-
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Background" Value="#2A0E1116" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="CaretBrush" Value="{StaticResource PanelText}" />
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Padding" Value="14,7" />
-            <Setter Property="Margin" Value="6,0,0,0" />
-            <Setter Property="Foreground" Value="{StaticResource PanelText}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
-                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
-                            <!-- RecognizesAccessKey defaults to false on a bare
-                                 ContentPresenter, which would render "_Save" with a
-                                 literal underscore instead of a mnemonic. -->
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"
-                                              RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.45" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
+    <!-- All styling comes from Themes/Glass.xaml via App.xaml. -->
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -80,7 +29,7 @@
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
             <Button x:Name="GenerateBtn" Content="_Generate" Click="GenerateBtn_Click"
-                    Background="#4C8DFF" Margin="0" />
+                    Style="{StaticResource PrimaryButton}" Margin="0" />
             <TextBlock x:Name="StatusText" Foreground="{StaticResource SubText}"
                        AutomationProperties.LiveSetting="Polite"
                        VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
@@ -90,11 +39,11 @@
             <TextBlock Text="Explanation" FontWeight="SemiBold" Margin="0,0,0,3" />
             <TextBlock x:Name="ExplanationText" Foreground="{StaticResource SubText}" TextWrapping="Wrap" />
             <Border x:Name="WarningBox" Visibility="Collapsed" Margin="0,8,0,0"
-                    Background="#3A2A1400" BorderBrush="#66E0A000" BorderThickness="1"
+                    Background="{StaticResource WarnBg}" BorderBrush="{StaticResource WarnBorder}" BorderThickness="1"
                     CornerRadius="6" Padding="10">
                 <!-- Assertive, not Polite: this is the safety warning about a script
                      that is about to be written to disk and later run. -->
-                <TextBlock x:Name="WarningsText" Foreground="#FFD98A" TextWrapping="Wrap"
+                <TextBlock x:Name="WarningsText" Foreground="{StaticResource WarnText}" TextWrapping="Wrap"
                            AutomationProperties.LiveSetting="Assertive" />
             </Border>
         </StackPanel>
@@ -115,7 +64,7 @@
                  script to disk, and the whole point of this dialog is to read it first. -->
             <Button x:Name="CancelBtn" Content="_Cancel" Click="CancelBtn_Click" Margin="0" IsCancel="True" />
             <Button x:Name="UseBtn" Content="_Use this" Click="UseBtn_Click"
-                    IsEnabled="False" Background="#4C8DFF" />
+                    IsEnabled="False" Style="{StaticResource PrimaryButton}" />
         </StackPanel>
     </Grid>
 </Window>
