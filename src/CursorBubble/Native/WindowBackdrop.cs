@@ -22,13 +22,13 @@ internal static class WindowBackdrop
 
         // Dark title bar works on Windows 10 2004+ as well.
         int dark = 1;
-        NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+        _ = NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
 
         if (!IsWindows11)
             return false;
 
         int corner = NativeMethods.DWMWCP_ROUND;
-        NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
+        _ = NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
         int backdrop = NativeMethods.DWMSBT_TRANSIENTWINDOW; // acrylic
         int hr = NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));

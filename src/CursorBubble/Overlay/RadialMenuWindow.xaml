@@ -11,6 +11,25 @@
         Focusable="False"
         IsHitTestVisible="False"
         SizeToContent="Manual"
-        WindowStartupLocation="Manual">
-    <Grid x:Name="RootGrid" />
+        WindowStartupLocation="Manual"
+        Title="Shortcut bubble"
+        AutomationProperties.Name="Shortcut bubble">
+    <Grid x:Name="RootGrid">
+        <!-- Focus proxy and live region for the keyboard bubble.
+             The bubble itself is drawn geometry, so there is nothing for a
+             screen reader to land on. This is what takes focus and what carries
+             the selection announcement.
+
+             Zero-size and fully transparent, but deliberately NOT Collapsed:
+             a collapsed element has no automation peer, so it could neither be
+             focused nor announced. IsHitTestVisible is off so it cannot affect
+             the mouse path. -->
+        <ContentControl x:Name="AnnounceProxy"
+                        Width="0" Height="0" Opacity="0"
+                        Focusable="True" IsTabStop="True"
+                        IsHitTestVisible="False"
+                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                        AutomationProperties.LiveSetting="Assertive"
+                        AutomationProperties.Name="Shortcut bubble" />
+    </Grid>
 </Window>

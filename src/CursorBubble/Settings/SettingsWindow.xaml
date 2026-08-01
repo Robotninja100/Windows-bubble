@@ -1,12 +1,13 @@
 <Window x:Class="CursorBubble.Settings.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="CursorBubble Instellingen"
+        xmlns:ctl="clr-namespace:CursorBubble.Controls"
+        Title="CursorBubble Settings"
         Width="760" Height="560"
         MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen"
         Background="#1B1F27"
-        Icon="pack://application:,,,/Assets/app.ico"
+        Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI"
         TextOptions.TextFormattingMode="Ideal">
 
@@ -33,6 +34,7 @@
         </Style>
 
         <Style TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="4,0,0,0" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -42,10 +44,18 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
                                 BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <!-- RecognizesAccessKey defaults to false on a bare
+                                 ContentPresenter, which would render "_Save" with a
+                                 literal underscore instead of a mnemonic. -->
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}" />
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
                             </Trigger>
@@ -59,6 +69,7 @@
         </Style>
 
         <Style TargetType="TextBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="Background" Value="#2A0E1116" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -68,10 +79,24 @@
         </Style>
 
         <Style TargetType="CheckBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
         </Style>
 
+        <!-- These two have no other styling here; the setter exists purely so the
+             keyboard focus ring is visible against the dark chrome. -->
+        <Style TargetType="ComboBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+        <Style TargetType="Slider">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        </Style>
+
         <Style TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -80,6 +105,9 @@
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
                             </Trigger>
@@ -105,11 +133,12 @@
                 <TextBlock Text="CursorBubble" FontWeight="Bold" FontSize="15"
                            Foreground="{StaticResource PanelText}" Margin="16,0,16,16" />
                 <ListBox x:Name="NavList" BorderThickness="0" Background="Transparent"
+                         AutomationProperties.Name="Settings sections"
                          SelectedIndex="0" SelectionChanged="NavList_SelectionChanged">
-                    <ListBoxItem Content="Algemeen" Padding="16,10" />
+                    <ListBoxItem Content="General" Padding="16,10" />
                     <ListBoxItem Content="Layout" Padding="16,10" />
-                    <ListBoxItem Content="Segmenten" Padding="16,10" />
-                    <ListBoxItem Content="Stijl" Padding="16,10" />
+                    <ListBoxItem Content="Segments" Padding="16,10" />
+                    <ListBoxItem Content="Style" Padding="16,10" />
                     <ListBoxItem Content="AI" Padding="16,10" />
                     <ListBoxItem Content="Claude Code" Padding="16,10" />
                 </ListBox>
@@ -126,22 +155,42 @@
 
             <!-- Panels -->
             <Grid Grid.Row="0">
-                <!-- Algemeen -->
-                <StackPanel x:Name="PanelAlgemeen">
-                    <TextBlock Text="Algemeen" Style="{StaticResource Heading}" />
-                    <CheckBox x:Name="StartWithWindowsCheck" Content="Met Windows opstarten"
-                              Margin="0,4,0,14" />
+                <!-- General -->
+                <StackPanel x:Name="PanelGeneral">
+                    <TextBlock Text="General" Style="{StaticResource Heading}" />
+                    <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows"
+                              Margin="0,4,0,10" />
+
+                    <TextBlock x:Name="HotkeyCaption" Text="Keyboard shortcut for the bubble"
+                               Style="{StaticResource FieldLabel}" Margin="0,0,0,3" />
+                    <DockPanel Margin="0,0,0,14">
+                        <Button x:Name="HotkeyResetBtn" Content="_Reset" DockPanel.Dock="Right"
+                                Click="HotkeyResetBtn_Click"
+                                AutomationProperties.Name="Reset the keyboard shortcut to Ctrl+Alt+Space" />
+                        <!-- Read-only: the value is captured from the keys pressed,
+                             not typed. Focus it and press the combination. -->
+                        <TextBox x:Name="HotkeyBox" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                 PreviewKeyDown="HotkeyBox_PreviewKeyDown"
+                                 GotKeyboardFocus="HotkeyBox_GotKeyboardFocus"
+                                 LostKeyboardFocus="HotkeyBox_LostKeyboardFocus"
+                                 ToolTip="Click here, then press the combination you want"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=HotkeyCaption}"
+                                 AutomationProperties.HelpText="Press the key combination you want. Tab moves on without changing it." />
+                    </DockPanel>
+                    <TextBlock x:Name="HotkeyHint" Foreground="#6B7486" FontSize="11"
+                               Margin="0,-10,0,14" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Polite" />
                     <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1"
                             CornerRadius="8" Padding="14">
                         <StackPanel>
-                            <TextBlock Text="Zo gebruik je het" FontWeight="SemiBold"
+                            <TextBlock Text="How to use it" FontWeight="SemiBold"
                                        Foreground="{StaticResource PanelText}" Margin="0,0,0,6" />
                             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}">
-                                Houd de <Run FontWeight="Bold">rechtermuisknop</Run> ingedrukt en
-                                klik dan met <Run FontWeight="Bold">links</Run>. De bubbel verschijnt
-                                rond je cursor. Beweeg naar een vakje en laat de muisknop los om die
-                                actie uit te voeren. Loslaten in het midden (Annuleren) sluit de
-                                bubbel zonder actie.
+                                Hold the <Run FontWeight="Bold">right mouse button</Run> and then
+                                <Run FontWeight="Bold">click left</Run>. The bubble appears around
+                                your cursor. Move to a segment and release the mouse button to run
+                                that action. Releasing in the centre (Cancel) closes the bubble
+                                without doing anything.
                             </TextBlock>
                             <TextBlock x:Name="ConfigPathText" TextWrapping="Wrap"
                                        Foreground="#6B7486" FontSize="11" Margin="0,10,0,0" />
@@ -156,34 +205,52 @@
                     <DockPanel>
                         <TextBlock x:Name="OuterRadiusValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Radius (Buiten)" Style="{StaticResource FieldLabel}" Margin="0,0,0,0" />
+                        <TextBlock x:Name="OuterRadiusCaption" Text="Radius (outer)"
+                                   Style="{StaticResource FieldLabel}" Margin="0,0,0,0" />
                     </DockPanel>
-                    <Slider x:Name="OuterRadiusSlider" Minimum="80" Maximum="320" />
+                    <Slider x:Name="OuterRadiusSlider" Minimum="80" Maximum="320"
+                            IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1" LargeChange="10"
+                            AutomationProperties.LabeledBy="{Binding ElementName=OuterRadiusCaption}" />
 
                     <DockPanel>
                         <TextBlock x:Name="InnerRadiusValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Radius (Binnen)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="InnerRadiusCaption" Text="Radius (inner)" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
-                    <Slider x:Name="InnerRadiusSlider" Minimum="0" Maximum="220" />
+                    <Slider x:Name="InnerRadiusSlider" Minimum="0" Maximum="220"
+                            IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1" LargeChange="10"
+                            AutomationProperties.LabeledBy="{Binding ElementName=InnerRadiusCaption}" />
 
                     <DockPanel>
                         <TextBlock x:Name="StartAngleValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Start-hoek" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="StartAngleCaption" Text="Start angle" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
-                    <Slider x:Name="StartAngleSlider" Minimum="0" Maximum="360" />
+                    <Slider x:Name="StartAngleSlider" Minimum="0" Maximum="360"
+                            IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1" LargeChange="15"
+                            AutomationProperties.LabeledBy="{Binding ElementName=StartAngleCaption}" />
 
                     <DockPanel>
                         <TextBlock x:Name="GapValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Ruimte tussen vakjes" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="GapCaption" Text="Gap between segments" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
-                    <Slider x:Name="GapSlider" Minimum="0" Maximum="20" />
+                    <Slider x:Name="GapSlider" Minimum="0" Maximum="20"
+                            IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1" LargeChange="5"
+                            AutomationProperties.LabeledBy="{Binding ElementName=GapCaption}" />
+
+                    <DockPanel>
+                        <TextBlock x:Name="CornerValue" DockPanel.Dock="Right"
+                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
+                        <TextBlock x:Name="CornerCaption" Text="Corner rounding" Style="{StaticResource FieldLabel}" />
+                    </DockPanel>
+                    <Slider x:Name="CornerSlider" Minimum="0" Maximum="60"
+                            IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1" LargeChange="5"
+                            AutomationProperties.LabeledBy="{Binding ElementName=CornerCaption}" />
                 </StackPanel>
 
-                <!-- Segmenten -->
-                <Grid x:Name="PanelSegmenten" Visibility="Collapsed">
+                <!-- Segments -->
+                <Grid x:Name="PanelSegments" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="210" />
                         <ColumnDefinition Width="*" />
@@ -193,34 +260,44 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Segmenten"
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Segments"
                                Style="{StaticResource Heading}" />
 
                     <DockPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button x:Name="AddBtn" Content="+ Toevoegen" Margin="0,0,4,0" Click="AddBtn_Click" />
-                            <Button x:Name="RemoveBtn" Content="− Verwijderen" Click="RemoveBtn_Click" />
+                            <Button x:Name="AddBtn" Content="+ _Add" Margin="0,0,4,0" Click="AddBtn_Click"
+                                    AutomationProperties.Name="Add segment" />
+                            <Button x:Name="RemoveBtn" Content="− _Remove" Click="RemoveBtn_Click"
+                                    AutomationProperties.Name="Remove the selected segment" />
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
-                            <Button x:Name="UpBtn" Content="▲ Omhoog" Margin="0,0,4,0" Click="UpBtn_Click" />
-                            <Button x:Name="DownBtn" Content="▼ Omlaag" Click="DownBtn_Click" />
+                            <Button x:Name="UpBtn" Content="▲ _Up" Margin="0,0,4,0" Click="UpBtn_Click"
+                                    AutomationProperties.Name="Move the selected segment up" />
+                            <Button x:Name="DownBtn" Content="▼ _Down" Click="DownBtn_Click"
+                                    AutomationProperties.Name="Move the selected segment down" />
                         </StackPanel>
                         <ListBox x:Name="SegmentsList" DisplayMemberPath="Label" Background="#22101317"
+                                 AutomationProperties.Name="Segments"
                                  BorderBrush="{StaticResource CardBorder}" Foreground="{StaticResource PanelText}"
                                  SelectionChanged="SegmentsList_SelectionChanged" />
                     </DockPanel>
 
                     <StackPanel x:Name="SegmentDetail" Grid.Row="1" Grid.Column="1">
-                        <TextBlock Text="Naam" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="LabelBox" TextChanged="Detail_Changed" />
+                        <TextBlock x:Name="LabelCaption" Text="Name" Style="{StaticResource FieldLabel}" />
+                        <TextBox x:Name="LabelBox" TextChanged="Detail_Changed"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=LabelCaption}" />
 
-                        <TextBlock Text="Icoon" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="IconCaption" Text="Icon" Style="{StaticResource FieldLabel}" />
                         <DockPanel>
-                            <TextBlock x:Name="IconPreview" DockPanel.Dock="Right"
-                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                                       FontSize="22" Width="30" TextAlignment="Center"
-                                       Foreground="{StaticResource PanelText}" VerticalAlignment="Center" />
-                            <ComboBox x:Name="IconGlyphBox" SelectionChanged="IconGlyphBox_Changed">
+                            <!-- Decorative: this renders a private-use-area codepoint,
+                                 which a screen reader would read out as garbage in front
+                                 of the combo box that actually names the icon. -->
+                            <ctl:DecorativeTextBlock x:Name="IconPreview" DockPanel.Dock="Right"
+                                                     FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                     FontSize="22" Width="30" TextAlignment="Center"
+                                                     Foreground="{StaticResource PanelText}" VerticalAlignment="Center" />
+                            <ComboBox x:Name="IconGlyphBox" SelectionChanged="IconGlyphBox_Changed"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=IconCaption}">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
@@ -234,53 +311,62 @@
                             </ComboBox>
                         </DockPanel>
 
-                        <TextBlock Text="Actie" Style="{StaticResource FieldLabel}" />
-                        <ComboBox x:Name="ActionBox" SelectionChanged="ActionBox_Changed" />
+                        <TextBlock x:Name="ActionCaption" Text="Action" Style="{StaticResource FieldLabel}" />
+                        <ComboBox x:Name="ActionBox" SelectionChanged="ActionBox_Changed"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=ActionCaption}" />
 
-                        <TextBlock Text="Doel (pad, map, URL of commando)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="TargetCaption" Text="Target (path, folder, URL or command)"
+                                   Style="{StaticResource FieldLabel}" />
                         <DockPanel>
-                            <Button x:Name="BrowseTargetBtn" Content="Bladeren…" DockPanel.Dock="Right"
-                                    Click="BrowseTargetBtn_Click" />
-                            <TextBox x:Name="TargetBox" TextChanged="Detail_Changed" />
+                            <!-- Two buttons in this panel read "Browse…"; only an explicit
+                                 name tells them apart when they are read out of context. -->
+                            <Button x:Name="BrowseTargetBtn" Content="Browse…" DockPanel.Dock="Right"
+                                    Click="BrowseTargetBtn_Click"
+                                    AutomationProperties.Name="Browse for a target file" />
+                            <TextBox x:Name="TargetBox" TextChanged="Detail_Changed"
+                                     AutomationProperties.LabeledBy="{Binding ElementName=TargetCaption}" />
                         </DockPanel>
-                        <Button x:Name="AiGenerateBtn" Content="✨ Genereer script met AI…"
-                                HorizontalAlignment="Left" Margin="0,6,0,0" Click="AiGenerateBtn_Click" />
+                        <Button x:Name="AiGenerateBtn" Content="✨ _Generate script with AI…"
+                                HorizontalAlignment="Left" Margin="0,6,0,0" Click="AiGenerateBtn_Click"
+                                AutomationProperties.Name="Generate a script with AI" />
 
-                        <TextBlock Text="Argumenten (optioneel)" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="ArgumentsBox" TextChanged="Detail_Changed" />
+                        <TextBlock x:Name="ArgumentsCaption" Text="Arguments (optional)" Style="{StaticResource FieldLabel}" />
+                        <TextBox x:Name="ArgumentsBox" TextChanged="Detail_Changed"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=ArgumentsCaption}" />
+                        <TextBlock x:Name="ArgumentsHint" Visibility="Collapsed"
+                                   Foreground="#FFD98A" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   Text="The target is an inline command, so it already contains its own arguments — this field is ignored. Point at a .ps1, .bat or .cmd file to use it." />
 
-                        <TextBlock Text="Icoon-afbeelding (optioneel)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="IconImageCaption" Text="Icon image (optional)" Style="{StaticResource FieldLabel}" />
                         <DockPanel>
-                            <Button x:Name="BrowseIconBtn" Content="Bladeren…" DockPanel.Dock="Right"
-                                    Click="BrowseIconBtn_Click" />
-                            <TextBox x:Name="IconBox" TextChanged="Detail_Changed" />
+                            <Button x:Name="BrowseIconBtn" Content="Browse…" DockPanel.Dock="Right"
+                                    Click="BrowseIconBtn_Click"
+                                    AutomationProperties.Name="Browse for an icon image" />
+                            <TextBox x:Name="IconBox" TextChanged="Detail_Changed"
+                                     AutomationProperties.LabeledBy="{Binding ElementName=IconImageCaption}" />
                         </DockPanel>
                     </StackPanel>
                 </Grid>
 
-                <!-- Stijl -->
-                <StackPanel x:Name="PanelStijl" Visibility="Collapsed">
-                    <TextBlock Text="Stijl" Style="{StaticResource Heading}" />
+                <!-- Style -->
+                <StackPanel x:Name="PanelStyle" Visibility="Collapsed">
+                    <TextBlock Text="Style" Style="{StaticResource Heading}" />
 
-                    <CheckBox x:Name="AcrylicCheck" Content="Glas-vervaging (acrylic)"
+                    <CheckBox x:Name="AcrylicCheck" Content="Glass blur (acrylic)"
                               Margin="0,0,0,6" Checked="Acrylic_Changed" Unchecked="Acrylic_Changed" />
 
-                    <CheckBox x:Name="AnimateCheck" Content="Animatie bij openen"
+                    <CheckBox x:Name="AnimateCheck" Content="Animations (open + hover)"
                               Margin="0,0,0,6" Checked="Animate_Changed" Unchecked="Animate_Changed" />
 
                     <DockPanel>
                         <TextBlock x:Name="TintOpacityValue" DockPanel.Dock="Right"
                                    Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Opacity (Vervaging)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock x:Name="TintOpacityCaption" Text="Glass opacity" Style="{StaticResource FieldLabel}" />
                     </DockPanel>
-                    <Slider x:Name="TintOpacitySlider" Minimum="0" Maximum="1" />
-
-                    <DockPanel>
-                        <TextBlock x:Name="SegmentOpacityValue" DockPanel.Dock="Right"
-                                   Foreground="{StaticResource SubText}" MinWidth="52" TextAlignment="Right" />
-                        <TextBlock Text="Doorzichtigheid vakjes" Style="{StaticResource FieldLabel}" />
-                    </DockPanel>
-                    <Slider x:Name="SegmentOpacitySlider" Minimum="0" Maximum="1" />
+                    <Slider x:Name="TintOpacitySlider" Minimum="0" Maximum="1"
+                            IsSnapToTickEnabled="True" TickFrequency="0.01" SmallChange="0.01" LargeChange="0.1"
+                            AutomationProperties.LabeledBy="{Binding ElementName=TintOpacityCaption}" />
 
                     <Grid Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
@@ -289,27 +375,30 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="Glaskleur" Style="{StaticResource FieldLabel}" />
+                            <TextBlock x:Name="TintColorCaption" Text="Glass colour" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="TintSwatch" Width="22" Height="22" DockPanel.Dock="Right"
                                         BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
-                                <TextBox x:Name="TintColorBox" TextChanged="Color_Changed" />
+                                <TextBox x:Name="TintColorBox" TextChanged="Color_Changed"
+                                         AutomationProperties.LabeledBy="{Binding ElementName=TintColorCaption}" />
                             </DockPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="3,0,3,0">
-                            <TextBlock Text="Accentkleur" Style="{StaticResource FieldLabel}" />
+                            <TextBlock x:Name="HighlightColorCaption" Text="Accent colour" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="HighlightSwatch" Width="22" Height="22" DockPanel.Dock="Right"
                                         BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
-                                <TextBox x:Name="HighlightColorBox" TextChanged="Color_Changed" />
+                                <TextBox x:Name="HighlightColorBox" TextChanged="Color_Changed"
+                                         AutomationProperties.LabeledBy="{Binding ElementName=HighlightColorCaption}" />
                             </DockPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Margin="6,0,0,0">
-                            <TextBlock Text="Tekstkleur" Style="{StaticResource FieldLabel}" />
+                            <TextBlock x:Name="LabelColorCaption" Text="Text colour" Style="{StaticResource FieldLabel}" />
                             <DockPanel>
                                 <Border x:Name="LabelSwatch" Width="22" Height="22" DockPanel.Dock="Right"
                                         BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="4" Margin="4,0,0,0" />
-                                <TextBox x:Name="LabelColorBox" TextChanged="Color_Changed" />
+                                <TextBox x:Name="LabelColorBox" TextChanged="Color_Changed"
+                                         AutomationProperties.LabeledBy="{Binding ElementName=LabelColorCaption}" />
                             </DockPanel>
                         </StackPanel>
                     </Grid>
@@ -317,48 +406,52 @@
 
                 <!-- AI -->
                 <StackPanel x:Name="PanelAi" Visibility="Collapsed">
-                    <TextBlock Text="AI-scriptgenerator" Style="{StaticResource Heading}" />
+                    <TextBlock Text="AI script generator" Style="{StaticResource Heading}" />
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}" Margin="0,0,0,10">
-                        Laat Claude een PowerShell-script voor je schrijven op basis van een beschrijving.
-                        Je hebt hiervoor een eigen Anthropic API-sleutel nodig. Het gegenereerde script
-                        wordt altijd eerst getoond zodat je het kunt controleren voordat het wordt opgeslagen.
+                        Have Claude write a PowerShell script for you from a description. This needs
+                        your own Anthropic API key. The generated script is always shown first so you
+                        can read it before it is saved.
                     </TextBlock>
 
-                    <TextBlock Text="API-sleutel" Style="{StaticResource FieldLabel}" />
+                    <TextBlock x:Name="AiApiKeyCaption" Text="API key" Style="{StaticResource FieldLabel}" />
                     <PasswordBox x:Name="AiApiKeyBox" Padding="6,4" Background="#2A0E1116"
                                  Foreground="{StaticResource PanelText}" BorderBrush="{StaticResource CardBorder}"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=AiApiKeyCaption}"
                                  PasswordChanged="AiApiKey_Changed" />
 
-                    <TextBlock Text="Model" Style="{StaticResource FieldLabel}" />
-                    <ComboBox x:Name="AiModelBox" SelectionChanged="AiModel_Changed" />
+                    <TextBlock x:Name="AiModelCaption" Text="Model" Style="{StaticResource FieldLabel}" />
+                    <ComboBox x:Name="AiModelBox" SelectionChanged="AiModel_Changed"
+                              AutomationProperties.LabeledBy="{Binding ElementName=AiModelCaption}" />
 
                     <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
-                        Een sleutel maak je aan op console.anthropic.com. De sleutel wordt versleuteld
-                        (Windows DPAPI, alleen voor jouw account) opgeslagen in config.json.
+                        Create a key at console.anthropic.com. It is stored encrypted in config.json
+                        (Windows DPAPI, readable only by your account).
                     </TextBlock>
                 </StackPanel>
 
                 <!-- Claude Code -->
                 <StackPanel x:Name="PanelClaude" Visibility="Collapsed">
-                    <TextBlock Text="Claude Code-inbox" Style="{StaticResource Heading}" />
+                    <TextBlock Text="Claude Code inbox" Style="{StaticResource Heading}" />
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubText}" Margin="0,0,0,10">
-                        Zie je Claude Code-sessies (in VS Code of een terminal) in de bubbel zodra ze
-                        stoppen of een vraag hebben, en beantwoord ze vanuit een glazen venster. Koppel
-                        hiervoor CursorBubble aan Claude Code — dat voegt hooks toe aan je
-                        ~/.claude/settings.json. Geef een vakje de actie “Claude Code inbox openen”.
+                        See your Claude Code sessions (in VS Code or a terminal) in the bubble as soon
+                        as they stop or have a question, and answer them from a glass window. Link
+                        CursorBubble to Claude Code for this — that adds hooks to your
+                        ~/.claude/settings.json. Give a segment the “Open Claude Code inbox” action.
                     </TextBlock>
 
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <Button x:Name="LinkClaudeBtn" Content="Koppel Claude Code" Margin="0"
+                        <Button x:Name="LinkClaudeBtn" Content="_Link Claude Code" Margin="0"
                                 Background="#4C8DFF" Foreground="White" Click="LinkClaude_Click" />
-                        <Button x:Name="UnlinkClaudeBtn" Content="Ontkoppelen" Click="UnlinkClaude_Click" />
+                        <Button x:Name="UnlinkClaudeBtn" Content="_Unlink" Click="UnlinkClaude_Click"
+                                AutomationProperties.Name="Unlink Claude Code" />
                     </StackPanel>
                     <TextBlock x:Name="ClaudeStatusText" Foreground="{StaticResource SubText}"
+                               AutomationProperties.LiveSetting="Polite"
                                Margin="0,10,0,0" TextWrapping="Wrap" />
                     <TextBlock TextWrapping="Wrap" Foreground="#6B7486" FontSize="11" Margin="0,10,0,0">
-                        Antwoorden gaan via het klembord naar het juiste venster (focus → plakken →
-                        Enter). Herstart lopende Claude Code-sessies na het koppelen zodat de hooks
-                        actief worden.
+                        Replies are delivered to the right window through the clipboard (focus → paste
+                        → Enter). Restart any running Claude Code sessions after linking so the hooks
+                        take effect.
                     </TextBlock>
                 </StackPanel>
             </Grid>
@@ -366,14 +459,16 @@
             <!-- Live preview -->
             <Border Grid.Row="1" Margin="0,16,0,0" Height="170" CornerRadius="10"
                     BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                <!-- Light backdrop: the glass is designed to sit on a desktop
+                     wallpaper, so a dark preview would misrepresent it. -->
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#5A6883" Offset="0" />
-                        <GradientStop Color="#2A3346" Offset="1" />
+                        <GradientStop Color="#D8E1EC" Offset="0" />
+                        <GradientStop Color="#8CA0B8" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid>
-                    <TextBlock Text="Live Preview" Foreground="#DCE4F2" FontSize="11"
+                    <TextBlock Text="Live Preview" Foreground="#33404F" FontSize="11"
                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,6,0,0" />
                     <Viewbox x:Name="PreviewBox" Margin="10,20,10,10" Stretch="Uniform" />
                 </Grid>
@@ -381,18 +476,29 @@
 
             <!-- Buttons -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button x:Name="CancelBtn" Content="Annuleren" Click="CancelBtn_Click" />
-                <Button x:Name="SaveBtn" Content="Opslaan" Foreground="White" Click="SaveBtn_Click">
+                <!-- Escape cancels, Enter saves. Every text box on this window is
+                     single-line, so Enter never has a competing meaning. -->
+                <Button x:Name="CancelBtn" Content="_Cancel" Click="CancelBtn_Click" IsCancel="True" />
+                <Button x:Name="SaveBtn" Content="_Save" Foreground="White" Click="SaveBtn_Click" IsDefault="True">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="bd" CornerRadius="6" Background="{StaticResource Accent}"
                                     BorderBrush="#5C9BFF" BorderThickness="1">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="12,6" />
+                                                  Margin="12,6" RecognizesAccessKey="True" />
                             </Border>
                             <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="bd" Property="BorderBrush" Value="#DCE9FF" />
+                                </Trigger>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="bd" Property="Background" Value="#5C9BFF" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#3F7AE0" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.45" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

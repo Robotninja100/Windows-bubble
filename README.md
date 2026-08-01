@@ -1,167 +1,287 @@
 # CursorBubble
 
-Een Windows-app die een **radiaal glas-menu ("bubbel") rond je muiscursor**
-toont via een muisgebaar. In de bubbel kies je een shortcut die een programma
-of bestand opent, of een script uitvoert. De layout, transparantie en acties
-stel je in de app zelf in.
+A Windows app that shows a **radial glass menu ("bubble") around your mouse
+cursor** on a gesture. In the bubble you pick a shortcut that opens a program or
+file, or runs a script. Layout, transparency and actions are all configured
+inside the app.
 
-![De bubbel rond de cursor met glazen segmenten](docs/reference.png)
+![The bubble around the cursor, with glass segments](docs/glass-preview.png)
 
-## Zo werkt het
+> The image above is a **rendering** of the shapes and the glass effect as the
+> app draws them (same geometry and gradients), not a Windows screenshot. The
+> icons are stand-ins: in the app they come from the Windows system font
+> **Segoe Fluent Icons**, which only exists on Windows.
 
-1. **Houd de rechtermuisknop ingedrukt** en **klik dan met links**.
-2. De glazen bubbel verschijnt rond je cursor.
-3. **Beweeg** naar een segment en **laat de muisknop los** om die actie uit te
-   voeren.
-4. Loslaten in het midden ("Annuleren") sluit de bubbel zonder iets te doen.
+## How it works
 
-Een gewone rechtermuisklik (zonder linkerklik erbij) werkt normaal: het
-contextmenu verschijnt gewoon zodra je de rechterknop loslaat.
+1. **Hold the right mouse button** and **then click left**.
+2. The glass bubble appears around your cursor.
+3. **Move** to a segment and **release the mouse button** to run that action.
+4. Releasing in the centre ("Cancel") closes the bubble without doing anything.
 
-De app draait op de achtergrond met een **icoon in het systeemvak**. Via het
-tray-menu open je **Instellingen**, zet je **Met Windows opstarten** aan/uit, of
-sluit je de app af.
+An ordinary right click (without a left click alongside it) still works
+normally: the context menu appears as soon as you release the right button.
 
-## Instellingen
+### Without a mouse
 
-Rechtsklik (of dubbelklik) op het tray-icoon → **Instellingen**:
+Press **Ctrl+Alt+Space** and the bubble opens in the middle of the screen,
+ready for the keyboard. The combination can be changed under **Settings →
+General**.
 
-- **Algemeen** — autostart en uitleg.
-- **Layout** — buiten-/binnenradius, start-hoek en de ruimte tussen de vakjes.
-- **Segmenten** — vakjes toevoegen, bewerken, verwijderen en herordenen. Per
-  segment: naam, actie, doel, argumenten en een optioneel icoon.
-- **Stijl** — glas-vervaging (acrylic) aan/uit, **animatie bij openen**,
-  transparantie, en de glas-, accent- en tekstkleur.
+| Key | What it does |
+| --- | --- |
+| `→` `↓` `Tab` | Next shortcut, clockwise |
+| `←` `↑` `Shift+Tab` | Previous shortcut |
+| `1`–`9` | Jump straight to that shortcut |
+| `Home` / `End` | First / last shortcut |
+| `Enter` or `Space` | Run the selected shortcut |
+| `Esc` | Close without running anything |
+| `Ctrl+Alt+Space` again | Also closes it |
 
-Het instellingenvenster zelf heeft dezelfde glas-look: op **Windows 11** met een
-echte acrylic-backdrop, op **Windows 10** een egaal donker thema.
+The arrow keys walk the ring as a **list**, not as a compass: "next" is always
+the following shortcut clockwise, in the same order they appear in the settings
+list, whichever side of the ring it is on. This stays predictable when the ring
+is rotated with **Start angle**, which a compass mapping would not.
 
-Alles heeft een **live preview**. Instellingen worden bewaard in
+The bubble **opens with nothing selected**, so pressing Enter straight away
+cancels rather than running whatever happened to be first. A screen reader
+announces how many shortcuts there are on opening, then each selection as
+"Open Documents, 2 of 7". When the bubble closes, focus goes back to the window
+you were in before, so the shortcut acts on the right thing.
+
+The app runs in the background with an **icon in the system tray**. From the
+tray menu you open **Settings**, toggle **Start with Windows**, or exit.
+
+## Settings
+
+Right-click (or double-click) the tray icon → **Settings…**:
+
+- **General** — autostart, the keyboard shortcut that opens the bubble, and a
+  short how-to. To change the shortcut, click the field and press the
+  combination you want; `Tab` leaves the field without changing it.
+- **Layout** — outer/inner radius, start angle, the gap between segments and how
+  rounded their corners are.
+- **Segments** — add, edit, remove and reorder segments. Per segment: name,
+  action, target, arguments and an icon. Pick an icon from the list (from the
+  Windows font Segoe Fluent Icons) or point at your own `.png`/`.ico`, which
+  takes priority.
+- **Style** — glass blur (acrylic) on/off, **animate on open**, glass opacity,
+  and the glass, accent and text colours.
+
+The settings window itself has the same glass look: a real acrylic backdrop on
+**Windows 11**, a flat dark theme on **Windows 10**.
+
+Everything has a **live preview**. Settings are stored in
 `%APPDATA%\CursorBubble\config.json`.
 
-### Soorten acties
+### Action types
 
-| Actie | Doel-veld | Voorbeeld |
-|-------|-----------|-----------|
-| Openen (bestand/map/URL) | pad, map of URL | `https://google.com`, `%USERPROFILE%\Documents` |
-| Programma starten | pad naar `.exe` (+ argumenten) | `calc.exe`, `notepad.exe` |
-| Script / commando uitvoeren | `.bat`/`.cmd`/`.ps1` of een commando | `powershell -Command "..."` |
+| Action | Target field | Example |
+|--------|--------------|---------|
+| Open (file/folder/URL) | path, folder or URL | `https://google.com`, `%USERPROFILE%\Documents` |
+| Launch program | path to an `.exe` (+ arguments) | `calc.exe`, `notepad.exe` |
+| Run script / command | `.bat`/`.cmd`/`.ps1`, or a command | `powershell -Command "..."` |
 
-`%VAR%`-omgevingsvariabelen in het doel worden automatisch uitgebreid.
+`%VAR%` environment variables in the target are expanded automatically.
 
-### Script maken met AI
+### Writing a script with AI
 
-In plaats van zelf een script te schrijven kun je het laten genereren:
+Instead of writing a script yourself you can have one generated:
 
-1. Vul je **Anthropic API-sleutel** in bij **Instellingen → AI** (aanmaken op
-   console.anthropic.com). Kies eventueel een goedkoper model.
-2. Ga naar **Segmenten**, kies een vakje en klik **✨ Genereer script met AI…**.
-3. Beschrijf in gewone taal wat het script moet doen (bijv. *"maak een back-up
-   van mijn documenten naar D:\Backups"*).
-4. Claude schrijft een PowerShell-script. **Lees het door**, en klik dan
-   **Gebruiken** — het wordt opgeslagen in
-   `%APPDATA%\CursorBubble\scripts\` en aan het vakje gekoppeld.
+1. Enter your **Anthropic API key** under **Settings → AI** (create one at
+   console.anthropic.com). Pick a cheaper model if you like.
+2. Go to **Segments**, select a segment and click **✨ Generate script with AI…**.
+3. Describe in plain language what the script should do (e.g. *"back up my
+   documents to D:\Backups"*).
+4. Claude writes a PowerShell script. **Read it through**, then click **Use
+   this** — it is saved to `%APPDATA%\CursorBubble\scripts\` and attached to the
+   segment.
 
-Het script wordt nooit automatisch uitgevoerd; het draait pas als je dat vakje
-in de bubbel kiest. De API-sleutel wordt **versleuteld** opgeslagen in
-`config.json` met de Windows Data Protection API (DPAPI) — alleen jouw
-Windows-account op deze pc kan hem ontsleutelen. Elke generatie kost een kleine
-hoeveelheid API-tegoed.
+The script is never run automatically; it only runs when you pick that segment
+in the bubble. The API key is stored **encrypted** in `config.json` using the
+Windows Data Protection API (DPAPI) — only your Windows account on this PC can
+decrypt it. Each generation costs a small amount of API credit.
 
-## Claude Code-inbox
+## Claude Code inbox
 
-Werk je met meerdere Claude Code-sessies (in VS Code of losse terminals)? Dan
-kun je ze vanuit de bubbel beantwoorden.
+Working with several Claude Code sessions (in VS Code or separate terminals)?
+You can answer them from the bubble.
 
-1. **Instellingen → Claude Code → Koppel Claude Code.** Dit voegt `Stop`- en
-   `Notification`-hooks toe aan je `~/.claude/settings.json`. Herstart lopende
-   sessies zodat de hooks actief worden.
-2. Zodra een sessie **stopt** of **een vraag heeft**, verschijnt er een
-   tray-melding en een **badge** met het aantal op het "Claude Code"-vakje in de
-   bubbel.
-3. Kies dat vakje → er opent een glazen venster met de openstaande sessies.
-   Bovenin de vraag/status + context, eronder een **typeveld**.
-4. Typ je antwoord → **Verstuur** → CursorBubble zet het op het klembord, brengt
-   het juiste venster naar voren en plakt + verstuurt het (Enter).
+1. **Settings → Claude Code → Link Claude Code.** This adds `Stop` and
+   `Notification` hooks to your `~/.claude/settings.json`. Restart running
+   sessions so the hooks take effect.
+2. As soon as a session **stops** or **has a question**, you get a tray
+   notification and a **badge** with the count on the "Claude Code" segment in
+   the bubble.
+3. Pick that segment → a glass window opens with the pending sessions. The
+   question/status plus context at the top, a **text field** below it.
+4. Type your reply → **Send** → CursorBubble puts it on the clipboard, brings
+   the right window to the front, and pastes + sends it (Enter).
 
-**Hoe het werkt / beperkingen:**
-- Detectie loopt via Claude Code-hooks; de hook geeft de laatste boodschap
-  (`last_assistant_message`) of de notificatie rechtstreeks mee — het transcript
-  wordt niet geparsed (dat formaat is onstabiel).
-- Antwoorden terugsturen wordt door Claude Code **niet officieel ondersteund**;
-  CursorBubble simuleert toetsaanslagen in het bijbehorende venster. Het juiste
-  venster wordt bepaald via het ouder-proces van de sessie (met terugval op de
-  projectmap-naam in de venstertitel, alleen bij een **eenduidige** match op een
-  terminal-/editorvenster).
-- Er wordt **nooit blind getypt**: pas als het doelvenster daadwerkelijk op de
-  voorgrond staat, gaan Ctrl+V en Enter eruit. Lukt dat niet, dan blijft de
-  sessie openstaan en staat je antwoord op het klembord om zelf te plakken —
-  zo belandt een Enter nooit in een verkeerd venster.
-- Je vorige klembord-inhoud wordt na een geslaagde verzending teruggezet.
-- Een korte focuswissel naar het doelvenster is zichtbaar.
-- Gestructureerde keuzevragen komen als tekst binnen; je typt je keuze.
+**How it works / limitations:**
+- Detection runs through Claude Code hooks; the hook passes the last message
+  (`last_assistant_message`) or the notification directly — the transcript is
+  not parsed (that format is unstable).
+- Sending replies back is **not officially supported** by Claude Code;
+  CursorBubble simulates keystrokes in the owning window. That window is found
+  through the session's parent process (falling back to the project folder name
+  in the window title, and only on an **unambiguous** match against a
+  terminal/editor window).
+- It **never types blind**: Ctrl+V and Enter only go out once the target window
+  is confirmed to be in the foreground. If that fails, the session stays pending
+  and your reply is left on the clipboard for you to paste — so an Enter never
+  lands in the wrong window.
+- Your previous clipboard contents are restored after a successful send.
+- A brief focus switch to the target window is visible.
+- Structured multiple-choice questions arrive as text; you type your answer.
 
-## Kant-en-klare .exe downloaden
+## Downloading a ready-made .exe
 
-Bij elke commit bouwt GitHub Actions de app op een echte Windows-runner en zet
-er een **self-contained `CursorBubble.exe`** klaar (geen .NET-installatie nodig):
+On every commit, GitHub Actions builds the app on a real Windows runner and
+publishes a **self-contained `CursorBubble.exe`** (no .NET install needed):
 
-GitHub → tabblad **Actions** → de bovenste (groene) **Build**-run →
-onderaan bij **Artifacts** → **CursorBubble** downloaden en uitpakken.
+GitHub → **Actions** tab → the topmost (green) **Build** run → **Artifacts** at
+the bottom → download **CursorBubble** and unzip.
 
-## Bouwen en draaien
+## Something went wrong
 
-> Vereist **Windows 10/11** en de **.NET 8 SDK** (WPF bouwt alleen op Windows).
+CursorBubble writes a log to `%APPDATA%\CursorBubble\logs\`, one file per day,
+kept for a week. Startup, failed actions and any unexpected error land there. If
+you report a problem, that file is the useful thing to attach.
+
+An unexpected error while the app is running is logged and shown as a tray
+notification rather than taking the app down.
+
+## Building and running
+
+> Requires **Windows 10/11** and the **.NET 8 SDK** (WPF only builds on Windows).
 
 ```powershell
-# In de map met CursorBubble.sln
+# In the folder containing CursorBubble.sln
 dotnet run --project src/CursorBubble
+
+# Run the tests
+dotnet test
 ```
 
-Een losse, zelfstandige `.exe` maken:
+To produce a standalone `.exe`:
 
 ```powershell
 dotnet publish src/CursorBubble -c Release -r win-x64 --self-contained `
   -p:PublishSingleFile=true
 ```
 
-De `.exe` staat daarna in
+The `.exe` then lives in
 `src/CursorBubble/bin/Release/net8.0-windows/win-x64/publish/`.
 
-## Techniek
+## How it is built
 
-- **C# / WPF (.NET 8)** — native Windows-overlay.
-- **Globale muishook** (`WH_MOUSE_LL`) herkent het gebaar en onderdrukt het
-  contextmenu; een gewone rechtsklik wordt opnieuw afgespeeld met `SendInput`.
-- **Transparant, top-most, klik-transparant overlay-venster**; hit-testing loopt
-  via de globale cursorpositie, dus een vastgehouden muisknop is geen probleem.
-- **Frosted glass** via `DwmEnableBlurBehindWindow` met een cirkelvormige regio,
-  zodat alleen de cirkel het bureaublad vervaagt.
-- **DPI-bewust** (Per-Monitor v2); de bubbel wordt in fysieke pixels op de
-  cursor geplaatst.
+- **C# / WPF (.NET 8)** — a native Windows overlay.
+- A **global mouse hook** (`WH_MOUSE_LL`) recognises the gesture and suppresses
+  the context menu; an ordinary right click is replayed with `SendInput`.
+- A **transparent, top-most, click-through overlay window**; hit-testing runs
+  off the global cursor position, so a held mouse button is not a problem.
+- **Liquid glass** — each segment is a rounded shape with a thin, transparent
+  body and a rim of light that runs along its edge like refraction (a wide soft
+  band plus a narrow bright line), with a specular gloss on top.
+- **Frosted glass** via `DwmEnableBlurBehindWindow`, with a region that follows
+  **the segments themselves** rather than one big circle: the desktop is blurred
+  only underneath the glass, while the gaps and the centre stay sharp.
+- **DPI-aware** (Per-Monitor v2); the bubble is placed on the cursor in physical
+  pixels.
+- **A global hotkey** via `RegisterHotKey` rather than a keyboard hook. A
+  low-level keyboard hook is a keylogger, and `SetForegroundWindow` is only
+  allowed to hand focus to the overlay because the process is handling a hotkey
+  event — a hook does not get that.
+- **Accessible**: every field is associated with its label, the custom control
+  templates draw a visible keyboard focus ring, status lines are announced as
+  live regions, and the bubble exposes itself to screen readers through a focus
+  proxy rather than through per-segment automation peers.
 
-### Bekende beperkingen
+### Known limitations
 
-- De blur achter de bubbel gebruikt `DwmEnableBlurBehindWindow`. Op sommige
-  Windows-versies is die blur subtiel of uitgeschakeld; zet in dat geval
-  **Glas-vervaging (acrylic)** uit voor een egale doorzichtige cirkel. De bubbel
-  blijft altijd zichtbaar als translucent glas.
-- Terwijl de app draait wordt elke rechtermuisklik heel kort vastgehouden en bij
-  loslaten opnieuw afgespeeld (nodig om het gebaar te kunnen detecteren).
-- Rechts-slepen (met de rechterknop ingedrukt slepen) wordt niet doorgegeven.
+- The blur behind the bubble uses `DwmEnableBlurBehindWindow`. On some Windows
+  versions that blur is subtle or disabled; in that case turn **Glass blur
+  (acrylic)** off — the segments are then tinted flatly instead of blurred. The
+  bubble is always visible as glass either way.
+- While the app runs, every right click is held very briefly and replayed on
+  release (needed to detect the gesture).
+- Right-dragging (dragging with the right button held) is not passed through.
+- Only the first nine shortcuts have a number-key shortcut. A larger ring is
+  still fully reachable with the arrow keys.
+- If another application has already claimed the hotkey, registering it fails
+  and the tray icon says so. Pick a different combination in settings; the
+  previous one stays active until a new one works.
 
-## Projectstructuur
+### Verified by hand, not by CI
+
+The build runs on a Windows runner, so it compiles the app and runs the unit
+tests, but nothing there can operate a window or a screen reader. These need a
+person on Windows:
+
+- the hotkey opens the bubble, and does so from a full-screen application;
+- the bubble actually takes focus (it logs a warning to
+  `%APPDATA%\CursorBubble\logs` if it does not) and the previous window is back
+  in front by the time the shortcut runs;
+- the acrylic blur still looks right after the window switches to keyboard mode;
+- the focus ring is visible on the dark settings chrome and on the glass;
+- Narrator actually reads the bubble and the four status lines aloud.
+
+That last one used to include "and each field's label", because a label
+association is a runtime binding and a typo in one compiles cleanly. It is now
+checked in CI instead: the windows are constructed in a test, every `LabeledBy`
+binding is resolved against the window, and each one has to point at the caption
+it claims to. That proves the wiring is intact — not that a screen reader speaks
+it, which is why the line above still exists.
+
+### Cutting a release
+
+Tagging a commit builds a versioned exe, attaches a SHA-256 checksum and opens a
+draft GitHub release:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The executable is **not code-signed**, so Windows SmartScreen warns on first run
+(*More info* → *Run anyway*). Signing needs a certificate, which is the one thing
+that cannot be solved in the repository.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: WPF only builds on
+Windows, so GitHub Actions is the compiler if you are not on it, and warnings
+are errors.
+
+Found a security problem? [SECURITY.md](SECURITY.md) has the private reporting
+route and a written-down account of what this app is able to do — worth reading
+before installing it, since it hooks the mouse, launches processes and edits
+Claude Code's configuration.
+
+Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
+## Project layout
 
 ```
 src/CursorBubble/
-  App.xaml(.cs)            start, tray + hook
-  Native/                  P/Invoke, muishook + gebaar, blur-helper
-  Overlay/                 transparant venster + radiale glas-tekening
-  Settings/                instellingenvenster met live preview + AI-dialoog
-  Ai/                      scriptgeneratie via de Claude-API + opslag
-  ClaudeCode/              hook-handler, inbox-opslag, hook-installer
-  Responder/               glazen venster om sessies te beantwoorden
-  Config/                  model + JSON-opslag
-  Actions/                 acties uitvoeren
-  Tray/                    systeemvak-icoon + autostart
+  App.xaml(.cs)            startup, tray + hook
+  Native/                  P/Invoke, mouse hook + gesture, blur helper
+  Overlay/                 transparent window + radial glass drawing
+  Settings/                settings window with live preview + AI dialog
+  Ai/                      script generation via the Claude API + storage
+  ClaudeCode/              hook handler, inbox storage, hook installer
+  Responder/               glass window for answering sessions
+  Config/                  model + JSON storage
+  Input/                   global hotkey: parsing + registration
+  Accessibility/           screen-reader announcements
+  Controls/                small shared controls
+  Actions/                 running actions
+  Tray/                    system tray icon + autostart
+  Diagnostics/             file log
+tests/CursorBubble.Tests/  unit tests for the logic that has no UI in it
 ```

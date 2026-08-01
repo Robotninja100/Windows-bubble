@@ -2,11 +2,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Accessibility;
 using CursorBubble.Ai;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Config;
+using CursorBubble.Input;
 using CursorBubble.Native;
 using CursorBubble.Overlay;
 using Microsoft.Win32;
@@ -28,28 +31,29 @@ public partial class SettingsWindow : Window
 
     private static readonly AiModelOption[] AiModels =
     {
-        new("Claude Opus 5 — beste kwaliteit", "claude-opus-5"),
-        new("Claude Sonnet 5 — sneller & goedkoper", "claude-sonnet-5"),
-        new("Claude Haiku 4.5 — goedkoopst", "claude-haiku-4-5"),
+        new("Claude Opus 5 — best quality", "claude-opus-5"),
+        new("Claude Sonnet 5 — faster & cheaper", "claude-sonnet-5"),
+        new("Claude Haiku 4.5 — cheapest", "claude-haiku-4-5"),
     };
 
     // Curated icons from the Segoe Fluent Icons / Segoe MDL2 Assets system font.
     private static readonly IconOption[] IconOptions =
     {
-        new("Geen", ""),
-        new("Map", ""),
-        new("Wereld / Browser", ""),
-        new("Instellingen", ""),
+        new("None", ""),
+        new("Folder", ""),
+        new("Globe / Browser", ""),
+        new("Settings", ""),
         new("Document", ""),
-        new("Opslaan", ""),
+        new("Save", ""),
         new("Mail", ""),
-        new("Agenda", ""),
-        new("Afspelen", ""),
+        new("Calendar", ""),
+        new("Play", ""),
         new("Camera", ""),
-        new("Foto", ""),
-        new("Muziek", ""),
+        new("Photo", ""),
+        new("Music", ""),
         new("Terminal", ""),
-        new("Rekenmachine", ""),
+        new("Message / Chat", ""),
+        new("Calculator", ""),
         new("Home", ""),
     };
 
@@ -71,14 +75,14 @@ public partial class SettingsWindow : Window
         _working = Clone(current);
 
         PreviewBox.Child = _preview;
-        ConfigPathText.Text = "Instellingen worden bewaard in: " + ConfigStore.ConfigPath;
+        ConfigPathText.Text = "Settings are stored in: " + ConfigStore.ConfigPath;
 
         ActionBox.ItemsSource = new[]
         {
-            new ActionOption("Openen (bestand / map / URL)", ActionType.OpenPath),
-            new ActionOption("Programma starten", ActionType.LaunchProgram),
-            new ActionOption("Script / commando uitvoeren", ActionType.RunScript),
-            new ActionOption("Claude Code inbox openen", ActionType.ClaudeInbox),
+            new ActionOption("Open (file / folder / URL)", ActionType.OpenPath),
+            new ActionOption("Launch program", ActionType.LaunchProgram),
+            new ActionOption("Run script / command", ActionType.RunScript),
+            new ActionOption("Open Claude Code inbox", ActionType.ClaudeInbox),
         };
         ActionBox.DisplayMemberPath = nameof(ActionOption.Display);
         ActionBox.SelectedValuePath = nameof(ActionOption.Value);
@@ -115,17 +119,19 @@ public partial class SettingsWindow : Window
         _suspend = true;
 
         StartWithWindowsCheck.IsChecked = _working.StartWithWindows;
+        HotkeyBox.Text = HotkeySpec.ParseOrDefault(_working.MenuHotkey, HotkeySpec.Default).ToString();
+        HotkeyHint.Text = HotkeyDescription;
 
         StyleConfig s = _working.Style;
         OuterRadiusSlider.Value = s.OuterRadius;
         InnerRadiusSlider.Value = s.InnerRadius;
         StartAngleSlider.Value = s.StartAngle;
         GapSlider.Value = s.SegmentGap;
+        CornerSlider.Value = s.SegmentCornerRadius;
 
         AcrylicCheck.IsChecked = s.UseAcrylicBlur;
         AnimateCheck.IsChecked = s.Animate;
         TintOpacitySlider.Value = s.TintOpacity;
-        SegmentOpacitySlider.Value = s.SegmentOpacity;
         TintColorBox.Text = s.TintColor;
         HighlightColorBox.Text = s.HighlightColor;
         LabelColorBox.Text = s.LabelColor;
@@ -145,32 +151,32 @@ public partial class SettingsWindow : Window
         InnerRadiusSlider.ValueChanged += (_, _) => OnLayoutChanged();
         StartAngleSlider.ValueChanged += (_, _) => OnLayoutChanged();
         GapSlider.ValueChanged += (_, _) => OnLayoutChanged();
+        CornerSlider.ValueChanged += (_, _) => OnLayoutChanged();
         TintOpacitySlider.ValueChanged += (_, _) => OnStyleChanged();
-        SegmentOpacitySlider.ValueChanged += (_, _) => OnStyleChanged();
     }
 
     // ---- navigation ---------------------------------------------------------
 
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PanelAlgemeen is null)
+        if (PanelGeneral is null)
             return; // during initial template load
 
-        PanelAlgemeen.Visibility = Visibility.Collapsed;
+        PanelGeneral.Visibility = Visibility.Collapsed;
         PanelLayout.Visibility = Visibility.Collapsed;
-        PanelSegmenten.Visibility = Visibility.Collapsed;
-        PanelStijl.Visibility = Visibility.Collapsed;
+        PanelSegments.Visibility = Visibility.Collapsed;
+        PanelStyle.Visibility = Visibility.Collapsed;
         PanelAi.Visibility = Visibility.Collapsed;
         PanelClaude.Visibility = Visibility.Collapsed;
 
         switch (NavList.SelectedIndex)
         {
             case 1: PanelLayout.Visibility = Visibility.Visible; break;
-            case 2: PanelSegmenten.Visibility = Visibility.Visible; break;
-            case 3: PanelStijl.Visibility = Visibility.Visible; break;
+            case 2: PanelSegments.Visibility = Visibility.Visible; break;
+            case 3: PanelStyle.Visibility = Visibility.Visible; break;
             case 4: PanelAi.Visibility = Visibility.Visible; break;
             case 5: PanelClaude.Visibility = Visibility.Visible; UpdateClaudeStatus(); break;
-            default: PanelAlgemeen.Visibility = Visibility.Visible; break;
+            default: PanelGeneral.Visibility = Visibility.Visible; break;
         }
     }
 
@@ -184,6 +190,7 @@ public partial class SettingsWindow : Window
         s.InnerRadius = InnerRadiusSlider.Value;
         s.StartAngle = StartAngleSlider.Value;
         s.SegmentGap = GapSlider.Value;
+        s.SegmentCornerRadius = CornerSlider.Value;
         UpdateValueLabels();
         RebuildPreview();
     }
@@ -193,7 +200,6 @@ public partial class SettingsWindow : Window
         if (_suspend) return;
         StyleConfig s = _working.Style;
         s.TintOpacity = TintOpacitySlider.Value;
-        s.SegmentOpacity = SegmentOpacitySlider.Value;
         UpdateValueLabels();
         RebuildPreview();
     }
@@ -227,8 +233,8 @@ public partial class SettingsWindow : Window
         InnerRadiusValue.Text = $"{InnerRadiusSlider.Value:0}px";
         StartAngleValue.Text = $"{StartAngleSlider.Value:0}°";
         GapValue.Text = $"{GapSlider.Value:0}°";
+        CornerValue.Text = $"{CornerSlider.Value:0}px";
         TintOpacityValue.Text = $"{TintOpacitySlider.Value * 100:0}%";
-        SegmentOpacityValue.Text = $"{SegmentOpacitySlider.Value * 100:0}%";
     }
 
     private void UpdateSwatches()
@@ -238,7 +244,7 @@ public partial class SettingsWindow : Window
         LabelSwatch.Background = BrushFrom(LabelColorBox.Text);
     }
 
-    private static Brush BrushFrom(string hex)
+    private static SolidColorBrush BrushFrom(string hex)
     {
         try
         {
@@ -276,6 +282,35 @@ public partial class SettingsWindow : Window
         IconPreview.Text = glyph;
 
         _suspend = false;
+
+        UpdateArgumentsHint();
+    }
+
+    /// <summary>
+    /// Warn when the Arguments field will be ignored.
+    ///
+    /// A "Run script" target with no script extension is an inline command line
+    /// that already carries its own arguments, so ActionRunner does not append
+    /// this field to it. Silently dropping what someone typed would be worse
+    /// than saying so.
+    /// </summary>
+    private void UpdateArgumentsHint()
+    {
+        SegmentConfig? seg = Selected;
+
+        bool ignored =
+            seg is { Action: ActionType.RunScript } &&
+            !string.IsNullOrWhiteSpace(ArgumentsBox.Text) &&
+            System.IO.Path.GetExtension(TargetBox.Text).ToLowerInvariant()
+                is not (".ps1" or ".bat" or ".cmd");
+
+        var wanted = ignored ? Visibility.Visible : Visibility.Collapsed;
+        if (ArgumentsHint.Visibility == wanted)
+            return;
+
+        ArgumentsHint.Visibility = wanted;
+        if (ignored)
+            Announce.LiveRegionWhenShown(ArgumentsHint);
     }
 
     private void Detail_Changed(object sender, TextChangedEventArgs e)
@@ -289,6 +324,7 @@ public partial class SettingsWindow : Window
         seg.Arguments = string.IsNullOrWhiteSpace(ArgumentsBox.Text) ? null : ArgumentsBox.Text;
         seg.IconPath = string.IsNullOrWhiteSpace(IconBox.Text) ? null : IconBox.Text;
 
+        UpdateArgumentsHint();
         SegmentsList.Items.Refresh();
         RebuildPreview();
     }
@@ -300,6 +336,8 @@ public partial class SettingsWindow : Window
         if (seg is null) return;
         if (ActionBox.SelectedValue is ActionType t)
             seg.Action = t;
+
+        UpdateArgumentsHint();
     }
 
     private void IconGlyphBox_Changed(object sender, SelectionChangedEventArgs e)
@@ -335,14 +373,14 @@ public partial class SettingsWindow : Window
         SegmentConfig? seg = Selected;
         if (seg is null)
         {
-            MessageBox.Show(this, "Kies eerst een segment (of voeg er een toe).", "CursorBubble");
+            MessageBox.Show(this, "Select a segment first (or add one).", "CursorBubble");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_working.AiApiKey))
         {
             MessageBox.Show(this,
-                "Stel eerst je Anthropic API-sleutel in bij Instellingen → AI.",
+                "Set your Anthropic API key first, under Settings → AI.",
                 "CursorBubble");
             NavList.SelectedIndex = 4;
             return;
@@ -366,7 +404,7 @@ public partial class SettingsWindow : Window
 
     private void AddBtn_Click(object sender, RoutedEventArgs e)
     {
-        var seg = new SegmentConfig { Label = "Nieuw", Action = ActionType.OpenPath, Target = "" };
+        var seg = new SegmentConfig { Label = "New", Action = ActionType.OpenPath, Target = "" };
         _working.Segments.Add(seg);
         SegmentsList.SelectedItem = seg;
         RebuildPreview();
@@ -400,7 +438,7 @@ public partial class SettingsWindow : Window
 
     private void BrowseTargetBtn_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog { Title = "Kies een programma of bestand" };
+        var dlg = new OpenFileDialog { Title = "Choose a program or file" };
         if (dlg.ShowDialog(this) == true)
             TargetBox.Text = dlg.FileName;
     }
@@ -409,8 +447,8 @@ public partial class SettingsWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Kies een icoon",
-            Filter = "Afbeeldingen (*.png;*.ico;*.jpg)|*.png;*.ico;*.jpg|Alle bestanden (*.*)|*.*"
+            Title = "Choose an icon",
+            Filter = "Images (*.png;*.ico;*.jpg)|*.png;*.ico;*.jpg|All files (*.*)|*.*"
         };
         if (dlg.ShowDialog(this) == true)
             IconBox.Text = dlg.FileName;
@@ -418,41 +456,59 @@ public partial class SettingsWindow : Window
 
     // ---- Claude Code linking ------------------------------------------------
 
-    private void UpdateClaudeStatus()
+    /// <summary>
+    /// Refresh the link buttons and the status line. A <paramref name="message"/>
+    /// from a click handler is the outcome of what the user just did, so it wins
+    /// over the generic line — and it is the one worth announcing.
+    /// </summary>
+    private void UpdateClaudeStatus(string? message = null)
     {
         bool linked = HookInstaller.IsInstalled();
-        ClaudeStatusText.Text = linked
-            ? "Status: gekoppeld. Nieuwe (of herstarte) Claude Code-sessies melden zich in de bubbel."
-            : "Status: niet gekoppeld.";
+
+        if (message is null)
+        {
+            ClaudeStatusText.Text = linked
+                ? "Status: linked. New (or restarted) Claude Code sessions will show up in the bubble."
+                : "Status: not linked.";
+        }
+        else
+        {
+            Announce.Text(ClaudeStatusText, message);
+        }
+
         LinkClaudeBtn.IsEnabled = !linked;
         UnlinkClaudeBtn.IsEnabled = linked;
     }
 
     private void LinkClaude_Click(object sender, RoutedEventArgs e)
     {
+        string message;
         try
         {
             HookInstaller.Install();
-            ClaudeStatusText.Text = "Gekoppeld! Herstart lopende Claude Code-sessies zodat de hooks actief worden.";
+            message = "Linked! Restart running Claude Code sessions so the hooks take effect.";
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Koppelen mislukt: " + ex.Message;
+            message = "Linking failed: " + ex.Message;
         }
-        UpdateClaudeStatus();
+        // Passed in rather than assigned here: the refresh used to overwrite it,
+        // so neither the success line nor the error was ever visible.
+        UpdateClaudeStatus(message);
     }
 
     private void UnlinkClaude_Click(object sender, RoutedEventArgs e)
     {
+        string? message = null;
         try
         {
             HookInstaller.Uninstall();
         }
         catch (Exception ex)
         {
-            ClaudeStatusText.Text = "Ontkoppelen mislukt: " + ex.Message;
+            message = "Unlinking failed: " + ex.Message;
         }
-        UpdateClaudeStatus();
+        UpdateClaudeStatus(message);
     }
 
     // ---- preview & save -----------------------------------------------------
@@ -463,6 +519,65 @@ public partial class SettingsWindow : Window
         // Show an example highlight so the accent colour is visible in the preview.
         _preview.SetHighlight(_working.Segments.Count > 1 ? 1 : (_working.Segments.Count == 1 ? 0 : -1));
     }
+
+    // ---- hotkey capture -----------------------------------------------------
+
+    /// <summary>
+    /// Capture the combination the user presses rather than the text they type.
+    /// </summary>
+    private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Tab must get through, or the capture box is itself a keyboard trap:
+        // there would be no way to leave the field without a mouse.
+        if (e.Key == Key.Tab) return;
+
+        e.Handled = true;
+
+        // Alt combinations arrive as Key.System with the real key in SystemKey.
+        // Reading e.Key alone makes Ctrl+Alt+X — the default — uncapturable.
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+
+        var modifiers = HotkeyModifiers.None;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) modifiers |= HotkeyModifiers.Control;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) modifiers |= HotkeyModifiers.Alt;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) modifiers |= HotkeyModifiers.Shift;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) modifiers |= HotkeyModifiers.Windows;
+
+        // Still holding the modifiers down and nothing else yet: show progress
+        // without committing to anything.
+        var candidate = new HotkeySpec(modifiers, key);
+        if (!HotkeySpec.TryParse(candidate.ToString(), out HotkeySpec spec))
+        {
+            Announce.Text(HotkeyHint, modifiers == HotkeyModifiers.None
+                ? "A shortcut needs at least Ctrl, Alt, Shift or the Windows key."
+                : "Keep holding and press a letter, digit or function key.");
+            return;
+        }
+
+        _working.MenuHotkey = spec.ToString();
+        HotkeyBox.Text = spec.ToString();
+
+        // Whether it can actually be registered is only known when the app tries;
+        // a conflict is reported from the tray after saving.
+        Announce.Text(HotkeyHint, $"Shortcut set to {spec}. It takes effect when you save.");
+    }
+
+    private void HotkeyBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => Announce.Text(HotkeyHint, "Press the combination you want. Tab moves on without changing it.");
+
+    private void HotkeyBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => HotkeyHint.Text = HotkeyDescription;
+
+    private void HotkeyResetBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _working.MenuHotkey = HotkeySpec.Default.ToString();
+        HotkeyBox.Text = HotkeySpec.Default.ToString();
+        Announce.Text(HotkeyHint, $"Shortcut reset to {HotkeySpec.Default}.");
+    }
+
+    private const string HotkeyDescription =
+        "Opens the bubble in the middle of the screen. Arrow keys or 1-9 to choose, " +
+        "Enter to run, Escape to cancel.";
 
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {

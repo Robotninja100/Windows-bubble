@@ -1,0 +1,62 @@
+name: CodeQL
+
+# Static analysis for the things the compiler is happy with: a global mouse
+# hook, a process launcher, DPAPI, clipboard access and code that edits another
+# tool's configuration file are all worth a second opinion.
+#
+# Deliberately NOT on every push. CodeQL for C# needs a full build, which on a
+# Windows runner takes minutes, and this repository has no local compiler — the
+# ordinary build workflow is the only feedback anyone gets, so competing with it
+# on every push makes the whole loop slower for a signal that changes rarely.
+#
+# The weekly run is the one that earns its keep in any case: most CodeQL
+# findings appear because the queries improved, not because the code changed.
+#
+# Run it against a branch on demand from the Actions tab.
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    # windows-latest, not ubuntu: WPF only builds on Windows, and CodeQL for C#
+    # needs a real build to trace.
+    runs-on: windows-latest
+
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+
+      # Explicit rather than autobuild: the solution needs a restore first, and
+      # a build that quietly analyses nothing is worse than no analysis at all.
+      - name: Build
+        run: |
+          dotnet restore CursorBubble.sln
+          dotnet build CursorBubble.sln -c Release --no-restore
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3
+        with:
+          category: /language:csharp

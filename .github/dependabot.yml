@@ -1,0 +1,28 @@
+version: 2
+
+# Both ecosystems matter here for the same reason: the workflows are pinned to
+# commit SHAs, which is good for supply-chain safety and useless for staying
+# current unless something proposes the bumps. That something is this file.
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # The test packages move together and are never interesting one at a time.
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet.*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"

@@ -2,11 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Claude Code"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Width="760" Height="520"
         MinWidth="640" MinHeight="440"
         WindowStartupLocation="CenterScreen"
         Background="#1B1F27"
-        Icon="pack://application:,,,/Assets/app.ico"
+        Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI">
 
     <Window.Resources>
@@ -20,6 +21,7 @@
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
         </Style>
         <Style TargetType="TextBox">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="Background" Value="#2A0E1116" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -28,6 +30,7 @@
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Padding" Value="14,7" />
             <Setter Property="Margin" Value="6,0,0,0" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
@@ -37,10 +40,18 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="6" Background="#1EFFFFFF"
                                 BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <!-- RecognizesAccessKey defaults to false on a bare
+                                 ContentPresenter, which would render "_Save" with a
+                                 literal underscore instead of a mnemonic. -->
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}" />
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#7FB0FF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#33FFFFFF" />
                             </Trigger>
@@ -52,7 +63,12 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- SessionsList is the only ListBox in this window, so binding the item
+             name here is safe. Without it a screen reader reads the four
+             TextBlocks of the item template as run-together fragments. -->
         <Style TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleSummary}" />
             <Setter Property="Foreground" Value="{StaticResource PanelText}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -61,6 +77,9 @@
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#18FFFFFF" />
                             </Trigger>
@@ -84,11 +103,14 @@
         <DockPanel Grid.Column="0" Margin="0,0,12,0">
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                 <Button x:Name="RefreshBtn" Content="⟳" DockPanel.Dock="Right" Padding="10,4"
-                        Margin="0" Click="RefreshBtn_Click" />
-                <TextBlock Text="Openstaande sessies" FontSize="15" FontWeight="SemiBold"
+                        Margin="0" Click="RefreshBtn_Click"
+                        ToolTip="Refresh (F5)"
+                        AutomationProperties.Name="Refresh the session list" />
+                <TextBlock x:Name="SessionsCaption" Text="Pending sessions" FontSize="15" FontWeight="SemiBold"
                            VerticalAlignment="Center" />
             </DockPanel>
             <ListBox x:Name="SessionsList" Background="#22101317" BorderBrush="{StaticResource CardBorder}"
+                     AutomationProperties.LabeledBy="{Binding ElementName=SessionsCaption}"
                      BorderThickness="1" SelectionChanged="SessionsList_SelectionChanged">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -110,7 +132,7 @@
 
         <!-- Right: detail + reply -->
         <Grid Grid.Column="1">
-            <TextBlock x:Name="EmptyHint" Text="Geen openstaande sessies." Foreground="{StaticResource SubText}"
+            <TextBlock x:Name="EmptyHint" Text="No pending sessions." Foreground="{StaticResource SubText}"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
             <DockPanel x:Name="DetailPanel" Visibility="Collapsed">
@@ -125,17 +147,27 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Jouw antwoord" Foreground="{StaticResource SubText}"
+                    <TextBlock Grid.Row="0" x:Name="ReplyCaption" Text="Your reply" Foreground="{StaticResource SubText}"
                                FontSize="12" Margin="0,0,0,3" />
+                    <!-- No IsDefault on Send: this box takes Enter as a newline.
+                         Ctrl+Enter sends instead, handled in the code-behind. -->
                     <TextBox Grid.Row="1" x:Name="ReplyBox" Height="72" TextWrapping="Wrap"
-                             AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
+                             AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             ToolTip="Ctrl+Enter sends"
+                             AutomationProperties.LabeledBy="{Binding ElementName=ReplyCaption}"
+                             PreviewKeyDown="ReplyBox_PreviewKeyDown" />
                     <DockPanel Grid.Row="2" Margin="0,8,0,0">
                         <TextBlock x:Name="StatusText" Foreground="{StaticResource SubText}"
+                                   AutomationProperties.LiveSetting="Polite"
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                            <Button x:Name="DismissBtn" Content="Verwijderen" Click="DismissBtn_Click" Margin="0" />
-                            <Button x:Name="SendBtn" Content="Verstuur ↵" Click="SendBtn_Click"
-                                    Background="{StaticResource Accent}" Foreground="White" />
+                            <!-- No IsCancel on Dismiss: it deletes the session, so Escape
+                                 must not be able to trigger it by reflex. -->
+                            <Button x:Name="DismissBtn" Content="_Dismiss" Click="DismissBtn_Click" Margin="0"
+                                    AutomationProperties.Name="Dismiss this session" />
+                            <Button x:Name="SendBtn" Content="_Send ↵" Click="SendBtn_Click"
+                                    Background="{StaticResource Accent}" Foreground="White"
+                                    AutomationProperties.Name="Send reply" />
                         </StackPanel>
                     </DockPanel>
                 </Grid>
@@ -144,6 +176,7 @@
                 <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}"
                         BorderThickness="1" CornerRadius="8" Margin="0,0,0,0">
                     <TextBox x:Name="MessageBox" IsReadOnly="True" Background="Transparent" BorderThickness="0"
+                             AutomationProperties.Name="Message from Claude Code"
                              Foreground="{StaticResource PanelText}" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto" Padding="10" />
                 </Border>

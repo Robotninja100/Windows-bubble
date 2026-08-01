@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using CursorBubble.Accessibility;
 using CursorBubble.ClaudeCode;
 using CursorBubble.Native;
 
@@ -37,7 +39,7 @@ public partial class ResponderWindow : Window
         object? previous = SessionsList.SelectedItem is InboxRecord r ? r.SessionId : null;
 
         SessionsList.ItemsSource = items;
-        Title = items.Count > 0 ? $"Claude Code — {items.Count} openstaand" : "Claude Code";
+        Title = items.Count > 0 ? $"Claude Code — {items.Count} pending" : "Claude Code";
 
         if (items.Count == 0)
         {
@@ -67,13 +69,34 @@ public partial class ResponderWindow : Window
 
         ProjectHeader.Text = rec.DisplayProject;
         MetaText.Text = $"{rec.StateText} · {rec.Cwd} · {rec.WhenLocal}";
-        MessageBox.Text = string.IsNullOrWhiteSpace(rec.Message) ? "(geen tekst meegegeven)" : rec.Message;
+        MessageBox.Text = string.IsNullOrWhiteSpace(rec.Message) ? "(no text provided)" : rec.Message;
         StatusText.Text = "";
         ReplyBox.Clear();
         ReplyBox.Focus();
     }
 
     private void RefreshBtn_Click(object sender, RoutedEventArgs e) => ReloadInbox();
+
+    /// <summary>
+    /// Ctrl+Enter sends. The reply box takes plain Enter as a newline, so the Send
+    /// button cannot be <c>IsDefault</c> — this is the keyboard path in its place.
+    /// </summary>
+    private void ReplyBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+
+        e.Handled = true;
+        if (SendBtn.IsEnabled) SendBtn_Click(SendBtn, new RoutedEventArgs());
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F5) return;
+
+        e.Handled = true;
+        ReloadInbox();
+    }
 
     private void DismissBtn_Click(object sender, RoutedEventArgs e)
     {
@@ -91,7 +114,7 @@ public partial class ResponderWindow : Window
         string text = ReplyBox.Text;
         if (string.IsNullOrWhiteSpace(text))
         {
-            StatusText.Text = "Typ eerst een antwoord.";
+            Announce.Text(StatusText, "Type a reply first.");
             return;
         }
 
@@ -104,12 +127,12 @@ public partial class ResponderWindow : Window
         }
         catch
         {
-            StatusText.Text = "Kon het klembord niet gebruiken.";
+            Announce.Text(StatusText, "Could not use the clipboard.");
             return;
         }
 
         SendBtn.IsEnabled = false;
-        StatusText.Text = "Bezig met versturen…";
+        Announce.Text(StatusText, "Sending…");
 
         // Step aside so focus can move to the terminal. Awaiting keeps the UI
         // responsive while the (slow) focus + paste happens on a worker thread.
@@ -144,7 +167,7 @@ public partial class ResponderWindow : Window
 
             Show();
             Activate();
-            StatusText.Text = "Antwoord verstuurd.";
+            Announce.Text(StatusText, "Reply sent.");
         }
         else
         {
@@ -152,8 +175,9 @@ public partial class ResponderWindow : Window
             // the clipboard so the user can paste it themselves.
             Show();
             Activate();
-            StatusText.Text = "Kon het venster van deze sessie niet activeren; er is niets getypt. " +
-                              "Je antwoord staat op het klembord — plak het zelf met Ctrl+V in de sessie.";
+            Announce.Text(StatusText,
+                "Could not bring this session's window to the front, so nothing was typed. " +
+                "Your reply is on the clipboard — paste it into the session yourself with Ctrl+V.");
         }
     }
 

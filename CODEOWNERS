@@ -1,0 +1,5 @@
+# Every change needs a review from the repository owner.
+#
+# There is no team here, so this file is less about routing and more about
+# making sure nothing merges unseen once branch protection is on.
+*       @Robotninja100
