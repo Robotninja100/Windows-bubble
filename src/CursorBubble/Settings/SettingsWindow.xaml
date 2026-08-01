@@ -333,6 +333,10 @@
                         <TextBlock x:Name="ArgumentsCaption" Text="Arguments (optional)" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="ArgumentsBox" TextChanged="Detail_Changed"
                                  AutomationProperties.LabeledBy="{Binding ElementName=ArgumentsCaption}" />
+                        <TextBlock x:Name="ArgumentsHint" Visibility="Collapsed"
+                                   Foreground="#FFD98A" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   Text="The target is an inline command, so it already contains its own arguments — this field is ignored. Point at a .ps1, .bat or .cmd file to use it." />
 
                         <TextBlock x:Name="IconImageCaption" Text="Icon image (optional)" Style="{StaticResource FieldLabel}" />
                         <DockPanel>

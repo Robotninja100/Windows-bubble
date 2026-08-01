@@ -282,6 +282,35 @@ public partial class SettingsWindow : Window
         IconPreview.Text = glyph;
 
         _suspend = false;
+
+        UpdateArgumentsHint();
+    }
+
+    /// <summary>
+    /// Warn when the Arguments field will be ignored.
+    ///
+    /// A "Run script" target with no script extension is an inline command line
+    /// that already carries its own arguments, so ActionRunner does not append
+    /// this field to it. Silently dropping what someone typed would be worse
+    /// than saying so.
+    /// </summary>
+    private void UpdateArgumentsHint()
+    {
+        SegmentConfig? seg = Selected;
+
+        bool ignored =
+            seg is { Action: ActionType.RunScript } &&
+            !string.IsNullOrWhiteSpace(ArgumentsBox.Text) &&
+            System.IO.Path.GetExtension(TargetBox.Text).ToLowerInvariant()
+                is not (".ps1" or ".bat" or ".cmd");
+
+        var wanted = ignored ? Visibility.Visible : Visibility.Collapsed;
+        if (ArgumentsHint.Visibility == wanted)
+            return;
+
+        ArgumentsHint.Visibility = wanted;
+        if (ignored)
+            Announce.LiveRegionWhenShown(ArgumentsHint);
     }
 
     private void Detail_Changed(object sender, TextChangedEventArgs e)
@@ -295,6 +324,7 @@ public partial class SettingsWindow : Window
         seg.Arguments = string.IsNullOrWhiteSpace(ArgumentsBox.Text) ? null : ArgumentsBox.Text;
         seg.IconPath = string.IsNullOrWhiteSpace(IconBox.Text) ? null : IconBox.Text;
 
+        UpdateArgumentsHint();
         SegmentsList.Items.Refresh();
         RebuildPreview();
     }
@@ -306,6 +336,8 @@ public partial class SettingsWindow : Window
         if (seg is null) return;
         if (ActionBox.SelectedValue is ActionType t)
             seg.Action = t;
+
+        UpdateArgumentsHint();
     }
 
     private void IconGlyphBox_Changed(object sender, SelectionChangedEventArgs e)
