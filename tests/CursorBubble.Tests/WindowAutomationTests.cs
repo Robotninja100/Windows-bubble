@@ -38,13 +38,6 @@ public sealed class WpfFixture : IDisposable
 
         _thread = new Thread(() =>
         {
-            // Each window sets Icon="pack://application:,,,/Assets/app.ico",
-            // and a pack URI with no assembly in it resolves against the entry
-            // assembly — which under a test host is the test runner, not the
-            // app. Without this, constructing any window fails looking for an
-            // icon that is not there.
-            Application.ResourceAssembly = typeof(App).Assembly;
-
             var app = new App();
             app.InitializeComponent();      // loads App.xaml's resources
             _dispatcher = Dispatcher.CurrentDispatcher;

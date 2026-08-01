@@ -7,7 +7,7 @@
         MinWidth="640" MinHeight="440"
         WindowStartupLocation="CenterScreen"
         Background="#1B1F27"
-        Icon="pack://application:,,,/Assets/app.ico"
+        Icon="pack://application:,,,/CursorBubble;component/Assets/app.ico"
         FontFamily="Segoe UI">
 
     <Window.Resources>
