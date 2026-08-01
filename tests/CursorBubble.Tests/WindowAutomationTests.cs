@@ -162,7 +162,7 @@ public class WindowAutomationTests
         foreach ((string file, string _, XElement template) in templates)
         {
             XElement presenter = Assert.Single(
-                template.Descendants().Where(e => e.Name.LocalName == "ContentPresenter"));
+                template.Descendants(), e => e.Name.LocalName == "ContentPresenter");
 
             Assert.Equal("True", (string?)presenter.Attribute("RecognizesAccessKey"));
         }
