@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -11,9 +12,20 @@ namespace CursorBubble.ClaudeCode;
 /// </summary>
 public static class HookInstaller
 {
-    private static readonly string SettingsPath = Path.Combine(
+    private static readonly string DefaultSettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".claude", "settings.json");
+
+    /// <summary>
+    /// The file to merge into. Settable so the tests can exercise the file-level
+    /// behaviour against a temp directory instead of the developer's real
+    /// Claude Code configuration — which is precisely the part that used to be
+    /// untested, and precisely the part that could destroy data.
+    /// </summary>
+    internal static string SettingsPath { get; set; } = DefaultSettingsPath;
+
+    /// <summary>How many backups of the user's settings.json to keep.</summary>
+    private const int BackupsKept = 3;
 
     // Events we hook into.
     private static readonly string[] Events = { "Stop", "Notification" };
@@ -129,29 +141,109 @@ public static class HookInstaller
         return false;
     }
 
+    /// <summary>
+    /// Read the user's settings.json.
+    ///
+    /// A missing file is fine — that is a first run, and an empty object is the
+    /// right starting point. A file that exists but cannot be read as a JSON
+    /// object is <em>not</em> fine: this used to fall through to a fresh empty
+    /// object, which <see cref="Save"/> then wrote straight over the top,
+    /// silently replacing everything the user had in there. Refuse instead, and
+    /// say why.
+    /// </summary>
     private static JsonObject Load()
+    {
+        if (!File.Exists(SettingsPath))
+            return new JsonObject();
+
+        string text;
+        try
+        {
+            text = File.ReadAllText(SettingsPath);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Could not read {SettingsPath}: {ex.Message}", ex);
+        }
+
+        // An empty file is a plausible half-written state, and treating it as
+        // "nothing to preserve" is safe — there is nothing in it to lose.
+        if (string.IsNullOrWhiteSpace(text))
+            return new JsonObject();
+
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(text);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"{SettingsPath} is not valid JSON, so it was left untouched. " +
+                $"Fix or move the file and try again. ({ex.Message})", ex);
+        }
+
+        if (node is not JsonObject obj)
+        {
+            throw new InvalidOperationException(
+                $"{SettingsPath} does not contain a JSON object, so it was left untouched. " +
+                "Fix or move the file and try again.");
+        }
+
+        return obj;
+    }
+
+    /// <summary>
+    /// Write the merged settings back, via a backup and a temp file.
+    ///
+    /// This is somebody else's configuration file, so the two failure modes
+    /// worth engineering against are "we wrote the wrong thing" (recoverable
+    /// from the backup) and "we died half way through the write" (impossible,
+    /// because the move is atomic).
+    /// </summary>
+    private static void Save(JsonObject root)
+    {
+        string dir = Path.GetDirectoryName(SettingsPath)!;
+        Directory.CreateDirectory(dir);
+
+        BackUp();
+
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        string temp = SettingsPath + ".tmp";
+        File.WriteAllText(temp, root.ToJsonString(options));
+        File.Move(temp, SettingsPath, overwrite: true);
+    }
+
+    /// <summary>
+    /// Copy the current settings.json aside before overwriting it, keeping the
+    /// newest <see cref="BackupsKept"/>. Never throws: failing to take a backup
+    /// is not a reason to refuse to link.
+    /// </summary>
+    private static void BackUp()
     {
         try
         {
-            if (File.Exists(SettingsPath))
+            if (!File.Exists(SettingsPath))
+                return;
+
+            string stamp = DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+            File.Copy(SettingsPath, $"{SettingsPath}.cursorbubble-backup-{stamp}", overwrite: true);
+
+            string dir = Path.GetDirectoryName(SettingsPath)!;
+            string prefix = Path.GetFileName(SettingsPath) + ".cursorbubble-backup-";
+
+            foreach (string old in Directory.EnumerateFiles(dir, prefix + "*")
+                                            .OrderByDescending(p => p, StringComparer.Ordinal)
+                                            .Skip(BackupsKept))
             {
-                JsonNode? node = JsonNode.Parse(File.ReadAllText(SettingsPath));
-                if (node is JsonObject obj)
-                    return obj;
+                File.Delete(old);
             }
         }
         catch
         {
-            // corrupt file — start from a fresh object rather than lose the ability to link
+            // Best effort. The atomic write below is the real protection.
         }
-        return new JsonObject();
-    }
-
-    private static void Save(JsonObject root)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        File.WriteAllText(SettingsPath, root.ToJsonString(options));
     }
 
     private static JsonObject GetOrCreateObject(JsonObject parent, string key)
