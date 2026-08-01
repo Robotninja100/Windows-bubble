@@ -225,9 +225,14 @@ person on Windows:
   in front by the time the shortcut runs;
 - the acrylic blur still looks right after the window switches to keyboard mode;
 - the focus ring is visible on the dark settings chrome and on the glass;
-- Narrator reads the bubble, the four status lines, and each field's label —
-  a label association is a runtime binding, so a typo in one compiles cleanly
-  and simply says nothing.
+- Narrator actually reads the bubble and the four status lines aloud.
+
+That last one used to include "and each field's label", because a label
+association is a runtime binding and a typo in one compiles cleanly. It is now
+checked in CI instead: the windows are constructed in a test, every `LabeledBy`
+binding is resolved against the window, and each one has to point at the caption
+it claims to. That proves the wiring is intact — not that a screen reader speaks
+it, which is why the line above still exists.
 
 ### Cutting a release
 
