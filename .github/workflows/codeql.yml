@@ -4,17 +4,23 @@ name: CodeQL
 # hook, a process launcher, DPAPI, clipboard access and code that edits another
 # tool's configuration file are all worth a second opinion.
 #
-# The weekly run matters as much as the per-push one — most CodeQL findings
-# appear because the queries improved, not because the code changed.
+# Deliberately NOT on every push. CodeQL for C# needs a full build, which on a
+# Windows runner takes minutes, and this repository has no local compiler — the
+# ordinary build workflow is the only feedback anyone gets, so competing with it
+# on every push makes the whole loop slower for a signal that changes rarely.
+#
+# The weekly run is the one that earns its keep in any case: most CodeQL
+# findings appear because the queries improved, not because the code changed.
+#
+# Run it against a branch on demand from the Actions tab.
 on:
   push:
-    branches-ignore:
-      - 'dependabot/**'
+    branches:
+      - main
   schedule:
     - cron: '17 4 * * 1'
   workflow_dispatch:
 
-# A newer push makes an in-flight run for the same branch pointless.
 concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: true
