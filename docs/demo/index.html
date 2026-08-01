@@ -1,0 +1,1303 @@
+<title>CursorBubble — web-demo</title>
+
+<style>
+  /* ---------------------------------------------------------------
+     Tokens. Cool, slightly blue-biased neutrals — the app lives on a
+     Windows desktop, so the greys lean the same way the glass does.
+     De stage (het "bureaublad") blijft altijd donker: dat is geen
+     pagina-oppervlak maar het behang waar de bubbel doorheen blurt.
+     --------------------------------------------------------------- */
+  :root {
+    --bg: #E9EDF5;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7FC;
+    --ink: #151A24;
+    --ink-2: #59617A;
+    --ink-3: #838CA3;
+    --line: #D6DDEA;
+    --accent: #2B5CE6;
+    --accent-soft: rgba(43, 92, 230, .10);
+    --signal: #B45309;
+
+    --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, "SF Mono", monospace;
+
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px -12px rgba(16, 24, 40, .18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B0E15;
+      --surface: #141924;
+      --surface-2: #1A2131;
+      --ink: #E7EBF4;
+      --ink-2: #99A3B8;
+      --ink-3: #6D7891;
+      --line: #262F41;
+      --accent: #85A6FF;
+      --accent-soft: rgba(133, 166, 255, .14);
+      --signal: #E0A34A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px -16px rgba(0, 0, 0, .7);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --bg: #E9EDF5;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7FC;
+    --ink: #151A24;
+    --ink-2: #59617A;
+    --ink-3: #838CA3;
+    --line: #D6DDEA;
+    --accent: #2B5CE6;
+    --accent-soft: rgba(43, 92, 230, .10);
+    --signal: #B45309;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px -12px rgba(16, 24, 40, .18);
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0B0E15;
+    --surface: #141924;
+    --surface-2: #1A2131;
+    --ink: #E7EBF4;
+    --ink-2: #99A3B8;
+    --ink-3: #6D7891;
+    --line: #262F41;
+    --accent: #85A6FF;
+    --accent-soft: rgba(133, 166, 255, .14);
+    --signal: #E0A34A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px -16px rgba(0, 0, 0, .7);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 18px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* ---- type ------------------------------------------------------ */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h1 {
+    font-size: clamp(30px, 8vw, 46px);
+    line-height: 1.04;
+    letter-spacing: -.028em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 8px 0 0;
+  }
+
+  h2 {
+    font-size: clamp(19px, 4.6vw, 24px);
+    line-height: 1.2;
+    letter-spacing: -.018em;
+    font-weight: 650;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -.006em;
+    margin: 0;
+  }
+
+  p { margin: 0; max-width: 62ch; }
+  .lede { font-size: clamp(16px, 3.6vw, 18px); color: var(--ink-2); margin-top: 14px; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 13.5px; line-height: 1.55; }
+
+  code, kbd {
+    font-family: var(--font-mono);
+    font-size: .87em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1px 5px;
+    word-break: break-word;
+  }
+
+  kbd { box-shadow: 0 1px 0 var(--line); }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+
+  .rule { height: 1px; background: var(--line); border: 0; margin: 0; }
+
+  /* ---- header ---------------------------------------------------- */
+  .banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--signal);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 22px;
+  }
+
+  .banner svg { flex: none; margin-top: 2px; color: var(--signal); }
+
+  /* ---- desktop stage --------------------------------------------- */
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: 78vh;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #4E5AA6;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+    isolation: isolate;
+  }
+
+  @media (min-width: 720px) { .stage { aspect-ratio: 16 / 10; } }
+
+  /* Het "behang": genoeg vorm en contrast zodat de blur zichtbaar is. */
+  .wallpaper {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(120% 90% at 20% 8%, #7FA8E8 0%, rgba(127, 168, 232, 0) 58%),
+      radial-gradient(85% 75% at 86% 82%, #C79BD8 0%, rgba(199, 155, 216, 0) 62%),
+      radial-gradient(70% 60% at 62% 34%, #8FB6E4 0%, rgba(143, 182, 228, 0) 70%),
+      linear-gradient(152deg, #3C63AE 0%, #4E5AA6 48%, #6E4E96 100%);
+  }
+
+  .wallpaper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, .08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, .08) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(100% 100% at 50% 40%, #000 30%, transparent 85%);
+  }
+
+  .mock-win {
+    position: absolute;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .20);
+    border: 1px solid rgba(255, 255, 255, .28);
+    box-shadow: 0 18px 40px -18px rgba(20, 24, 48, .55);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .mock-win .bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .30); }
+  .mock-win .bar.s { width: 45%; }
+  .mock-win .bar.m { width: 72%; }
+  .mock-win .bar.a { width: 60%; background: rgba(120, 180, 255, .55); }
+
+  .win-a { left: 5%; top: 9%; width: 40%; height: 34%; }
+  .win-b { right: 6%; bottom: 16%; width: 34%; height: 40%; }
+
+  .taskbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 34px;
+    background: rgba(12, 16, 28, .55);
+    border-top: 1px solid rgba(255, 255, 255, .10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .taskbar i {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .38);
+    display: block;
+  }
+
+  .taskbar i.tray { background: #E03A3A; border-radius: 50%; box-shadow: 0 0 0 3px rgba(224, 58, 58, .22); }
+
+  .hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255, 255, 255, .92);
+    font-size: 14px;
+    line-height: 1.5;
+    pointer-events: none;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, .7);
+    transition: opacity .2s ease;
+    padding: 0 20px;
+  }
+
+  .hint .ring {
+    width: 46px; height: 46px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .8);
+    animation: pulse 2.1s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(.7); opacity: .25; }
+    55% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+
+  .stage.armed .hint { opacity: 0; }
+
+  /* ---- de bubbel ------------------------------------------------- */
+  .bubble-pos {
+    position: absolute;
+    left: 0; top: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .stage.open .bubble-pos { visibility: visible; }
+
+  .bubble {
+    position: relative;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 0 24px rgba(0, 0, 0, .5));
+  }
+
+  .stage.open .bubble.animate { animation: pop .16s cubic-bezier(.2, .9, .3, 1.2); }
+
+  @keyframes pop {
+    from { transform: scale(.86); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  /* De frosted disc: dit is de echte backdrop-blur, net als
+     DwmEnableBlurBehindWindow met een cirkelvormige regio. */
+  .frost {
+    position: absolute;
+    border-radius: 50%;
+    inset: 0;
+  }
+
+  .frost.blur { backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); }
+
+  .bubble svg { position: relative; display: block; }
+  .seg { stroke: rgba(255, 255, 255, .40); stroke-width: 1.2; stroke-linejoin: round; }
+
+  .labels { position: absolute; inset: 0; }
+
+  .label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.22;
+    white-space: pre-line;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-shadow: 0 0 6px rgba(255, 255, 255, .6);
+  }
+
+  .label svg { width: 26px; height: 26px; }
+
+  .center-cancel {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(255, 255, 255, .6);
+  }
+
+  .badge {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #E03A3A;
+    border: 1.5px solid rgba(255, 255, 255, .8);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+  }
+
+  /* ---- toast ----------------------------------------------------- */
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 48px;
+    transform: translate(-50%, 8px);
+    max-width: min(88%, 460px);
+    background: rgba(10, 14, 24, .82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: #fff;
+    font-size: 13.5px;
+    line-height: 1.45;
+    opacity: 0;
+    transition: opacity .18s ease, transform .18s ease;
+    pointer-events: none;
+    text-align: center;
+  }
+
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast b { font-weight: 650; }
+  .toast .cmd { font-family: var(--font-mono); font-size: 12.5px; color: #BFD3FF; overflow-wrap: anywhere; }
+
+  /* ---- besturing / instellingen ---------------------------------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px 26px;
+  }
+
+  @media (min-width: 620px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  .field-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  .field-head .val {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; height: 20px;
+    margin-top: -8px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+  }
+
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+  .switches { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13.5px;
+    font-weight: 550;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px 7px 11px;
+    cursor: pointer;
+  }
+
+  .switch input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+  .switch:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 13px;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+
+  .chip .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    flex: none;
+  }
+
+  .chip[aria-pressed="true"] {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  }
+
+  .chip[aria-pressed="true"] .dot { background: var(--accent); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .colors { display: flex; flex-wrap: wrap; gap: 14px; }
+  .color-field { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 550; }
+
+  input[type="color"] {
+    width: 34px; height: 34px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+  }
+
+  input[type="color"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 15px;
+    cursor: pointer;
+  }
+
+  .btn:hover { border-color: var(--ink-3); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- stappen (het gebaar is een echte volgorde) ----------------- */
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    counter-reset: step;
+  }
+
+  .steps li {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 7px;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    margin-top: 1px;
+  }
+
+  /* ---- responder mock -------------------------------------------- */
+  .responder {
+    border-radius: 12px;
+    padding: 16px;
+    background: linear-gradient(160deg, rgba(38, 52, 84, .96), rgba(24, 30, 52, .96));
+    border: 1px solid rgba(255, 255, 255, .16);
+    color: #EAEEF8;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: var(--shadow);
+    transition: box-shadow .3s ease;
+  }
+
+  .responder.flash { box-shadow: 0 0 0 3px rgba(224, 58, 58, .55), var(--shadow); }
+
+  .responder .r-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; font-size: 13px; }
+  .responder .r-dot { width: 8px; height: 8px; border-radius: 50%; background: #E03A3A; flex: none; }
+  .responder .r-path { font-family: var(--font-mono); font-size: 12px; color: #A9B7D6; }
+
+  .responder .r-msg {
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 9px;
+    padding: 11px 13px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .responder .r-input {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 9px;
+    padding: 9px 11px;
+    font-size: 14px;
+    color: #B9C4DD;
+  }
+
+  .responder .r-caret {
+    width: 1.5px;
+    height: 16px;
+    background: #EAEEF8;
+    animation: blink 1.1s steps(2) infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .responder .r-send {
+    margin-left: auto;
+    background: rgba(255, 255, 255, .92);
+    color: #1A2030;
+    border-radius: 7px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    font-weight: 650;
+  }
+
+  /* ---- lijstjes / tabel ------------------------------------------ */
+  .cards { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 620px) { .cards { grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 15px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .card .tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  footer {
+    color: var(--ink-3);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">CursorBubble · web-demo</div>
+    <h1>De bubbel, speelbaar op je telefoon.</h1>
+    <p class="lede">
+      De echte app is een Windows-programma (WPF, .NET 8) en draait alleen op
+      Windows 10/11. Deze pagina bouwt de bubbel na in de browser — dezelfde
+      geometrie, dezelfde standaardinstellingen, dezelfde live preview — zodat
+      je hem kunt bekijken en instellen zonder iets te downloaden.
+    </p>
+
+    <div class="banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16.5v.01" />
+      </svg>
+      <p class="small">
+        <b>Dit is een nabootsing, geen echte app.</b> Segmenten voeren hier niets
+        uit — je ziet alleen wat er op Windows zou gebeuren. Instellingen worden
+        niet bewaard.
+      </p>
+    </div>
+  </header>
+
+  <section>
+    <div>
+      <h2>Probeer de bubbel</h2>
+      <p class="muted small" style="margin-top:6px">
+        Druk ergens op het bureaublad, sleep naar een vakje en laat los. Loslaten
+        in het midden annuleert.
+      </p>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="wallpaper"></div>
+      <div class="mock-win win-a">
+        <div class="bar m"></div><div class="bar s"></div><div class="bar a"></div><div class="bar m"></div>
+      </div>
+      <div class="mock-win win-b">
+        <div class="bar s"></div><div class="bar m"></div><div class="bar m"></div><div class="bar a"></div>
+      </div>
+      <div class="taskbar"><i></i><i></i><i></i><i></i><i class="tray"></i></div>
+
+      <div class="hint" id="hint">
+        <div class="ring"></div>
+        Druk en sleep op het bureaublad
+      </div>
+
+      <div class="bubble-pos" id="bubblePos">
+        <div class="bubble" id="bubble">
+          <div class="frost" id="frost"></div>
+          <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+          <div class="labels" id="labels"></div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <p class="small muted">
+      Op Windows verschijnt de bubbel niet bij een gewone klik, maar bij een
+      gebaar — zie hieronder.
+    </p>
+  </section>
+
+  <section>
+    <h2>Het gebaar</h2>
+    <ol class="steps">
+      <li><div><b>Houd de rechtermuisknop ingedrukt</b> en klik er dan met links bij.</div></li>
+      <li><div>De glazen bubbel verschijnt <b>rond je cursor</b>, waar die ook staat.</div></li>
+      <li><div><b>Beweeg</b> naar een vakje en <b>laat los</b> om die actie uit te voeren.</div></li>
+      <li><div>Loslaten in het midden sluit de bubbel zonder iets te doen.</div></li>
+    </ol>
+    <p class="small muted">
+      Een gewone rechtsklik blijft gewoon werken: het contextmenu verschijnt zodra
+      je de rechterknop loslaat zonder linkerklik.
+    </p>
+  </section>
+
+  <section>
+    <h2>Instellingen — live</h2>
+    <p class="muted small">
+      Dit zijn de echte instellingen uit het instellingenvenster, met dezelfde
+      standaardwaarden. Alles werkt meteen door in de bubbel hierboven.
+    </p>
+
+    <div class="panel">
+      <div>
+        <div class="eyebrow" style="margin-bottom:12px">Layout</div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="field-head" for="outer">Buitenradius <span class="val" id="outerVal">200</span></label>
+            <input type="range" id="outer" min="120" max="280" step="1" value="200" />
+          </div>
+          <div class="field">
+            <label class="field-head" for="inner">Binnenradius <span class="val" id="innerVal">60</span></label>
+            <input type="range" id="inner" min="0" max="140" step="1" value="60" />
+          </div>
+          <div class="field">
+            <label class="field-head" for="angle">Start-hoek <span class="val" id="angleVal">0°</span></label>
+            <input type="range" id="angle" min="0" max="360" step="1" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-head" for="gap">Ruimte tussen vakjes <span class="val" id="gapVal">4°</span></label>
+            <input type="range" id="gap" min="0" max="20" step="0.5" value="4" />
+          </div>
+        </div>
+      </div>
+
+      <hr class="rule" />
+
+      <div>
+        <div class="eyebrow" style="margin-bottom:12px">Stijl</div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="field-head" for="tintOp">Transparantie glas <span class="val" id="tintOpVal">0.30</span></label>
+            <input type="range" id="tintOp" min="0" max="1" step="0.01" value="0.30" />
+          </div>
+          <div class="field">
+            <label class="field-head" for="segOp">Transparantie vakjes <span class="val" id="segOpVal">0.35</span></label>
+            <input type="range" id="segOp" min="0" max="1" step="0.01" value="0.35" />
+          </div>
+        </div>
+
+        <div class="switches" style="margin-top:14px">
+          <label class="switch"><input type="checkbox" id="acrylic" checked /> Glas-vervaging (acrylic)</label>
+          <label class="switch"><input type="checkbox" id="animate" checked /> Animatie bij openen</label>
+        </div>
+
+        <div class="colors" style="margin-top:16px">
+          <label class="color-field" for="tintColor"><input type="color" id="tintColor" value="#ffffff" /> Glaskleur</label>
+          <label class="color-field" for="hiColor"><input type="color" id="hiColor" value="#eaf2ff" /> Accent</label>
+          <label class="color-field" for="labelColor"><input type="color" id="labelColor" value="#20242c" /> Tekst</label>
+        </div>
+      </div>
+
+      <hr class="rule" />
+
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Segmenten</div>
+        <p class="small muted" style="margin-bottom:12px">
+          Tik om een vakje aan of uit te zetten — de bubbel verdeelt de cirkel
+          opnieuw, precies zoals de app dat doet.
+        </p>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div>
+        <button class="btn" type="button" id="reset">Terug naar standaard</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Claude Code-inbox</h2>
+    <p class="muted small">
+      Draaien er Claude Code-sessies die op je wachten? Dan krijgt het
+      "Claude Code"-vakje een badge met het aantal. Kies je dat vakje, dan opent
+      dit glazen venster: bovenin de vraag, eronder een typeveld. Je antwoord
+      gaat via het klembord naar het juiste terminal- of editorvenster.
+    </p>
+
+    <div class="responder" id="responder">
+      <div class="r-head">
+        <span class="r-dot"></span>
+        <b>Wacht op antwoord</b>
+        <span class="r-path">~/projects/cursor-bubble</span>
+      </div>
+      <div class="r-msg">
+        Ik heb de muishook aangepast zodat een gewone rechtsklik opnieuw wordt
+        afgespeeld. Zal ik ook het rechts-slepen doorgeven, of laten we dat zoals het is?
+      </div>
+      <div class="r-input">
+        <span>Typ je antwoord…</span>
+        <span class="r-caret"></span>
+        <span class="r-send">Verstuur</span>
+      </div>
+    </div>
+
+    <p class="small muted">
+      CursorBubble typt nooit blind: pas als het doelvenster écht op de voorgrond
+      staat, gaan Ctrl+V en Enter eruit. Lukt dat niet, dan blijft je antwoord op
+      het klembord staan om zelf te plakken.
+    </p>
+  </section>
+
+  <section>
+    <h2>Hoe je hem écht draait</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="tag">Zonder installatie</div>
+        <h3>Kant-en-klare .exe</h3>
+        <p class="small muted">
+          GitHub Actions bouwt bij elke commit een self-contained
+          <code>CursorBubble.exe</code> — geen .NET nodig. In de repo:
+          <b>Actions</b> → de bovenste groene <b>Build</b>-run → onderaan bij
+          <b>Artifacts</b> → <b>CursorBubble</b> downloaden en uitpakken.
+        </p>
+      </div>
+      <div class="card">
+        <div class="tag">Vanaf de broncode</div>
+        <h3>Zelf bouwen</h3>
+        <p class="small muted">
+          Met de .NET 8 SDK op Windows, in de map met <code>CursorBubble.sln</code>:
+          <code>dotnet run --project src/CursorBubble</code>
+        </p>
+      </div>
+    </div>
+    <p class="small muted">
+      Beide vragen een Windows-pc. Op je telefoon kan de app zelf niet draaien —
+      WPF, de globale muishook en de acrylic-blur bestaan alleen op Windows.
+    </p>
+  </section>
+
+  <hr class="rule" />
+
+  <footer>
+    <div>CursorBubble — radiaal glas-menu rond je muiscursor.</div>
+    <div>Web-demo van de standaardconfiguratie; geen echte acties.</div>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    "use strict";
+
+    // ---- icons -------------------------------------------------------
+    // De app tekent Segoe Fluent Icons-glyphs; die bestaan niet op een
+    // telefoon, dus hier staan gelijkwaardige vectoriconen.
+    var S = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+    var ICONS = {
+      folder: '<svg viewBox="0 0 24 24" ' + S + '><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+      globe: '<svg viewBox="0 0 24 24" ' + S + '><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.6 2.5 15.4 0 18-2.5-2.6-2.5-15.4 0-18z"/></svg>',
+      calc: '<svg viewBox="0 0 24 24" ' + S + '><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></svg>',
+      script: '<svg viewBox="0 0 24 24" ' + S + '><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13l2 2-2 2"/><path d="M13 17h3"/></svg>',
+      term: '<svg viewBox="0 0 24 24" ' + S + '><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/></svg>',
+      gear: '<svg viewBox="0 0 24 24" ' + S + '><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.4 2.6 2.9-.5.4 2.9 2.6 1.4-1.6 2.5 1.6 2.5-2.6 1.4-.4 2.9-2.9-.5L12 21.5l-1.4-2.6-2.9.5-.4-2.9L4.7 15l1.6-2.5-1.6-2.5 2.6-1.4.4-2.9 2.9.5z"/></svg>',
+      spark: '<svg viewBox="0 0 24 24" ' + S + '><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/><path d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>'
+    };
+
+    // ---- segmenten (AppConfig.CreateDefault) -------------------------
+    var SEGMENTS = [
+      { label: "Documenten\nopenen", icon: "folder", kind: "Openen", target: "%USERPROFILE%\\Documents", on: true },
+      { label: "Webbrowser\nstarten", icon: "globe", kind: "Openen", target: "https://www.google.com", on: true },
+      { label: "Rekenmachine", icon: "calc", kind: "Starten", target: "calc.exe", on: true },
+      { label: "Draai Back-up\nScript", icon: "script", kind: "Script", target: "powershell -NoProfile -Command \"…\"", on: true },
+      { label: "PowerShell\nopenen", icon: "term", kind: "Starten", target: "powershell.exe", on: true },
+      { label: "Instellingen\nopenen", icon: "gear", kind: "Openen", target: "ms-settings:", on: true },
+      { label: "Claude Code", icon: "spark", kind: "Inbox", target: "", on: true, inbox: true }
+    ];
+
+    var INBOX_COUNT = 2;
+
+    var DEFAULTS = {
+      outer: 200, inner: 60, angle: 0, gap: 4,
+      tintOp: 0.30, segOp: 0.35,
+      acrylic: true, animate: true,
+      tintColor: "#ffffff", hiColor: "#eaf2ff", labelColor: "#20242c"
+    };
+
+    var cfg = Object.assign({}, DEFAULTS);
+
+    var stage = document.getElementById("stage");
+    var bubblePos = document.getElementById("bubblePos");
+    var bubble = document.getElementById("bubble");
+    var frost = document.getElementById("frost");
+    var svg = document.getElementById("svg");
+    var labels = document.getElementById("labels");
+    var toast = document.getElementById("toast");
+    var responder = document.getElementById("responder");
+    var SVGNS = "http://www.w3.org/2000/svg";
+
+    var scale = 1;
+    var highlighted = -2;
+    var pointerActive = false;
+    var toastTimer = null;
+
+    // ---- geometrie (RadialMenuControl) -------------------------------
+    function pointOnCircle(cx, cy, r, deg) {
+      var rad = deg * Math.PI / 180;
+      return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+    }
+
+    function sectorPath(cx, cy, rIn, rOut, a0, a1) {
+      var os = pointOnCircle(cx, cy, rOut, a0);
+      var oe = pointOnCircle(cx, cy, rOut, a1);
+      var ie = pointOnCircle(cx, cy, rIn, a1);
+      var is = pointOnCircle(cx, cy, rIn, a0);
+      var large = (a1 - a0) > 180 ? 1 : 0;
+      var d = "M " + os[0] + " " + os[1] +
+        " A " + rOut + " " + rOut + " 0 " + large + " 1 " + oe[0] + " " + oe[1] +
+        " L " + ie[0] + " " + ie[1];
+      if (rIn > 0.5) {
+        d += " A " + rIn + " " + rIn + " 0 " + large + " 0 " + is[0] + " " + is[1];
+      } else {
+        d += " L " + cx + " " + cy;
+      }
+      return d + " Z";
+    }
+
+    function mod(v, m) { return ((v % m) + m) % m; }
+
+    function activeSegments() {
+      return SEGMENTS.filter(function (s) { return s.on; });
+    }
+
+    function hitTest(dx, dy) {
+      var list = activeSegments();
+      if (!list.length) return -1;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < innerRadius()) return -1;          // dode zone = annuleren
+      var angle = mod(Math.atan2(dx, -dy) * 180 / Math.PI, 360);
+      var rel = mod(angle - cfg.angle, 360);
+      var sweep = 360 / list.length;
+      var i = Math.floor(rel / sweep);
+      return Math.min(Math.max(i, 0), list.length - 1);
+    }
+
+    function outerRadius() { return Math.max(40, cfg.outer); }
+    function innerRadius() { return Math.min(Math.max(cfg.inner, 0), outerRadius() - 10); }
+
+    function withAlpha(hex, a) {
+      var h = hex.replace("#", "");
+      var r = parseInt(h.substring(0, 2), 16);
+      var g = parseInt(h.substring(2, 4), 16);
+      var b = parseInt(h.substring(4, 6), 16);
+      return "rgba(" + r + "," + g + "," + b + "," + Math.min(Math.max(a, 0), 1).toFixed(3) + ")";
+    }
+
+    // ---- tekenen ------------------------------------------------------
+    function build() {
+      var outer = outerRadius();
+      var inner = innerRadius();
+      var diameter = outer * 2;
+      var list = activeSegments();
+      var cx = outer, cy = outer;
+
+      // Met acrylic levert de backdrop de tint; de vulling is dan maar een waas.
+      var segAlpha = cfg.acrylic ? Math.min(0.18, cfg.segOp) : cfg.segOp;
+      var baseAlpha = cfg.acrylic ? Math.min(0.16, cfg.tintOp) : cfg.tintOp;
+
+      var segFill = withAlpha(cfg.tintColor, segAlpha);
+      var hiFill = withAlpha(cfg.hiColor, 0.65);
+
+      bubble.style.width = diameter + "px";
+      bubble.style.height = diameter + "px";
+      svg.setAttribute("width", diameter);
+      svg.setAttribute("height", diameter);
+      svg.setAttribute("viewBox", "0 0 " + diameter + " " + diameter);
+
+      frost.style.background = withAlpha(cfg.tintColor, baseAlpha);
+      frost.style.border = "1.5px solid rgba(255,255,255,.35)";
+      frost.classList.toggle("blur", cfg.acrylic);
+
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      labels.textContent = "";
+      highlighted = -2;
+
+      if (!list.length) {
+        var empty = document.createElement("div");
+        empty.className = "center-cancel";
+        empty.style.color = cfg.labelColor;
+        empty.textContent = "Geen shortcuts ingesteld";
+        labels.appendChild(empty);
+        layout();
+        return;
+      }
+
+      var sweep = 360 / list.length;
+      var halfGap = list.length > 1 ? Math.min(Math.max(cfg.gap, 0), 20) / 2 : 0;
+      var labelRadius = (inner + outer) / 2;
+
+      list.forEach(function (seg, i) {
+        var a0 = cfg.angle + i * sweep + halfGap;
+        var a1 = cfg.angle + (i + 1) * sweep - halfGap;
+
+        var path = document.createElementNS(SVGNS, "path");
+        path.setAttribute("d", sectorPath(cx, cy, inner, outer, a0, a1));
+        path.setAttribute("fill", segFill);
+        path.setAttribute("class", "seg");
+        path.dataset.fill = segFill;
+        path.dataset.hi = hiFill;
+        svg.appendChild(path);
+
+        var mid = (a0 + a1) / 2;
+        var p = pointOnCircle(cx, cy, labelRadius, mid);
+
+        var el = document.createElement("div");
+        el.className = "label";
+        el.style.left = p[0] + "px";
+        el.style.top = p[1] + "px";
+        el.style.color = cfg.labelColor;
+        el.style.maxWidth = Math.max(56, (outer - inner) * 1.4) + "px";
+        el.innerHTML = ICONS[seg.icon] + "<span>" + seg.label + "</span>";
+        labels.appendChild(el);
+
+        if (seg.inbox && INBOX_COUNT > 0) {
+          var bp = pointOnCircle(cx, cy, outer - 20, mid);
+          var badge = document.createElement("div");
+          badge.className = "badge";
+          badge.style.left = bp[0] + "px";
+          badge.style.top = bp[1] + "px";
+          badge.textContent = String(INBOX_COUNT);
+          labels.appendChild(badge);
+        }
+      });
+
+      if (inner >= 24) {
+        var s = Math.min(18, inner * 0.35);
+        var cancel = document.createElement("div");
+        cancel.className = "center-cancel";
+        cancel.style.color = cfg.labelColor;
+        cancel.innerHTML =
+          '<svg width="' + (s * 2) + '" height="' + (s * 2) + '" viewBox="0 0 24 24" fill="none" ' +
+          'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">' +
+          '<path d="M6 6l12 12M6 18L18 6"/></svg><span>Annuleren</span>';
+        labels.appendChild(cancel);
+      }
+
+      layout();
+    }
+
+    function layout() {
+      var rect = stage.getBoundingClientRect();
+      var diameter = outerRadius() * 2;
+      // De bubbel mag hooguit ~84% van de kortste stage-zijde beslaan.
+      scale = Math.min(1, (Math.min(rect.width, rect.height) * 0.84) / diameter);
+      place(lastX, lastY);
+    }
+
+    var lastX = 0.5, lastY = 0.5; // relatief, zodat resize netjes blijft
+
+    function place(rx, ry) {
+      var rect = stage.getBoundingClientRect();
+      var r = outerRadius() * scale;
+      var x = Math.min(Math.max(rx * rect.width, r + 6), Math.max(r + 6, rect.width - r - 6));
+      var y = Math.min(Math.max(ry * rect.height, r + 6), Math.max(r + 6, rect.height - r - 6));
+      bubblePos.style.transform = "translate(" + (x - r) + "px," + (y - r) + "px) scale(" + scale + ")";
+      bubblePos.dataset.cx = x;
+      bubblePos.dataset.cy = y;
+    }
+
+    function highlight(index) {
+      if (index === highlighted) return;
+      highlighted = index;
+      var paths = svg.querySelectorAll("path");
+      for (var i = 0; i < paths.length; i++) {
+        paths[i].setAttribute("fill", i === index ? paths[i].dataset.hi : paths[i].dataset.fill);
+      }
+    }
+
+    // ---- interactie ---------------------------------------------------
+    function open(clientX, clientY) {
+      var rect = stage.getBoundingClientRect();
+      lastX = (clientX - rect.left) / rect.width;
+      lastY = (clientY - rect.top) / rect.height;
+      hideToast();
+      layout();
+      stage.classList.add("open", "armed");
+      bubble.classList.toggle("animate", cfg.animate);
+      if (cfg.animate) {
+        // herstart de animatie
+        bubble.style.animation = "none";
+        void bubble.offsetWidth;
+        bubble.style.animation = "";
+      }
+      highlight(-2);
+    }
+
+    function track(clientX, clientY) {
+      var rect = stage.getBoundingClientRect();
+      var cx = parseFloat(bubblePos.dataset.cx);
+      var cy = parseFloat(bubblePos.dataset.cy);
+      var dx = (clientX - rect.left - cx) / scale;
+      var dy = (clientY - rect.top - cy) / scale;
+      highlight(hitTest(dx, dy));
+    }
+
+    function release() {
+      var list = activeSegments();
+      var index = highlighted;
+      stage.classList.remove("open");
+      if (index >= 0 && index < list.length) {
+        fire(list[index]);
+      } else {
+        showToast("<b>Geannuleerd</b> — losgelaten in het midden.");
+      }
+      highlight(-2);
+    }
+
+    function fire(seg) {
+      if (seg.inbox) {
+        showToast("<b>Claude Code</b> — opent het antwoordvenster met " +
+          INBOX_COUNT + " wachtende sessies.");
+        responder.classList.add("flash");
+        setTimeout(function () { responder.classList.remove("flash"); }, 1600);
+        return;
+      }
+      var verb = seg.kind === "Openen" ? "Opent"
+        : seg.kind === "Starten" ? "Start"
+        : "Voert uit";
+      showToast("<b>" + verb + "</b><br><span class=\"cmd\">" + escapeHtml(seg.target) + "</span>");
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function showToast(html) {
+      toast.innerHTML = html;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, 3200);
+    }
+
+    function hideToast() {
+      clearTimeout(toastTimer);
+      toast.classList.remove("show");
+    }
+
+    stage.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      pointerActive = true;
+      stage.setPointerCapture(e.pointerId);
+      open(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+
+    stage.addEventListener("pointermove", function (e) {
+      if (!pointerActive) return;
+      track(e.clientX, e.clientY);
+    });
+
+    function end(e) {
+      if (!pointerActive) return;
+      pointerActive = false;
+      try { stage.releasePointerCapture(e.pointerId); } catch (err) { /* al vrijgegeven */ }
+      release();
+    }
+
+    stage.addEventListener("pointerup", end);
+    stage.addEventListener("pointercancel", end);
+    stage.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+    window.addEventListener("resize", layout);
+
+    // ---- besturing ----------------------------------------------------
+    function bindRange(id, key, format) {
+      var el = document.getElementById(id);
+      var out = document.getElementById(id + "Val");
+      el.addEventListener("input", function () {
+        cfg[key] = parseFloat(el.value);
+        out.textContent = format(cfg[key]);
+        build();
+      });
+      return { el: el, out: out, format: format };
+    }
+
+    var deg = function (v) { return Math.round(v) + "°"; };
+    var px = function (v) { return Math.round(v); };
+    var frac = function (v) { return v.toFixed(2); };
+
+    var ranges = {
+      outer: bindRange("outer", "outer", px),
+      inner: bindRange("inner", "inner", px),
+      angle: bindRange("angle", "angle", deg),
+      gap: bindRange("gap", "gap", deg),
+      tintOp: bindRange("tintOp", "tintOp", frac),
+      segOp: bindRange("segOp", "segOp", frac)
+    };
+
+    function bindCheck(id, key) {
+      var el = document.getElementById(id);
+      el.addEventListener("change", function () { cfg[key] = el.checked; build(); });
+      return el;
+    }
+
+    var acrylicEl = bindCheck("acrylic", "acrylic");
+    var animateEl = bindCheck("animate", "animate");
+
+    function bindColor(id, key) {
+      var el = document.getElementById(id);
+      el.addEventListener("input", function () { cfg[key] = el.value; build(); });
+      return el;
+    }
+
+    var colorEls = {
+      tintColor: bindColor("tintColor", "tintColor"),
+      hiColor: bindColor("hiColor", "hiColor"),
+      labelColor: bindColor("labelColor", "labelColor")
+    };
+
+    var chips = document.getElementById("chips");
+    SEGMENTS.forEach(function (seg, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.setAttribute("aria-pressed", String(seg.on));
+      b.innerHTML = '<span class="dot"></span>' + seg.label.replace(/\n/g, " ");
+      b.addEventListener("click", function () {
+        seg.on = !seg.on;
+        b.setAttribute("aria-pressed", String(seg.on));
+        build();
+      });
+      chips.appendChild(b);
+    });
+
+    document.getElementById("reset").addEventListener("click", function () {
+      cfg = Object.assign({}, DEFAULTS);
+      SEGMENTS.forEach(function (s) { s.on = true; });
+      Object.keys(ranges).forEach(function (k) {
+        ranges[k].el.value = cfg[k];
+        ranges[k].out.textContent = ranges[k].format(cfg[k]);
+      });
+      acrylicEl.checked = cfg.acrylic;
+      animateEl.checked = cfg.animate;
+      Object.keys(colorEls).forEach(function (k) { colorEls[k].value = cfg[k]; });
+      Array.prototype.forEach.call(chips.children, function (c) { c.setAttribute("aria-pressed", "true"); });
+      build();
+    });
+
+    build();
+  })();
+</script>
