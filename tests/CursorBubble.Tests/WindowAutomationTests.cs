@@ -1,13 +1,5 @@
 using System.IO;
-using System.Windows;
-using System.Windows.Automation;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Threading;
-using CursorBubble.ClaudeCode;
-using CursorBubble.Config;
-using CursorBubble.Responder;
-using CursorBubble.Settings;
+using System.Xml.Linq;
 using Xunit;
 // WPF's implicit usings bring in System.Windows.Shapes.Path.
 using Path = System.IO.Path;
@@ -15,301 +7,286 @@ using Path = System.IO.Path;
 namespace CursorBubble.Tests;
 
 /// <summary>
-/// Hosts a WPF <see cref="Application"/> on a dedicated STA thread so windows
-/// can be constructed in a test.
-///
-/// The Application is not optional scaffolding: every window resolves
-/// <c>{StaticResource FocusRing}</c>, which lives in App.xaml's
-/// Application.Resources, and StaticResource is resolved while the XAML is
-/// parsed. Without an Application in the process, constructing any of these
-/// windows throws.
-///
-/// Nothing is ever shown. These tests are about what the XAML declares, which
-/// is knowable from the object graph alone and needs no desktop.
-/// </summary>
-public sealed class WpfFixture : IDisposable
-{
-    private readonly Thread _thread;
-    private Dispatcher? _dispatcher;
-
-    public WpfFixture()
-    {
-        using var ready = new ManualResetEventSlim();
-
-        _thread = new Thread(() =>
-        {
-            var app = new App();
-            app.InitializeComponent();      // loads App.xaml's resources
-            _dispatcher = Dispatcher.CurrentDispatcher;
-            ready.Set();
-            Dispatcher.Run();
-        })
-        {
-            IsBackground = true
-        };
-
-        _thread.SetApartmentState(ApartmentState.STA);
-        _thread.Start();
-        ready.Wait(TimeSpan.FromSeconds(30));
-    }
-
-    /// <summary>Run <paramref name="work"/> on the UI thread and return its result.</summary>
-    public T On<T>(Func<T> work) => _dispatcher!.Invoke(work);
-
-    public void Dispose() => _dispatcher?.InvokeShutdown();
-}
-
-[CollectionDefinition(Name)]
-public sealed class WpfCollection : ICollectionFixture<WpfFixture>
-{
-    public const string Name = "wpf";
-}
-
-/// <summary>
 /// What the three windows declare about themselves to a screen reader.
 ///
 /// The point of this file is one specific failure that nothing else catches: an
 /// <c>AutomationProperties.LabeledBy</c> binding whose <c>ElementName</c> does
-/// not resolve. That compiles perfectly cleanly, produces no warning, and the
-/// only symptom is a screen reader saying "slider" where it should say "Radius
-/// (outer)" — which nobody notices unless they are using one.
+/// not resolve. It compiles perfectly cleanly, produces no warning, and the only
+/// symptom is a screen reader saying "slider" where it should say "Radius
+/// (outer)" — which nobody notices unless they are using one. Twenty-two of
+/// those were previously trusted on inspection alone.
 ///
-/// These tests read the bindings off the constructed object graph, so they
-/// prove the names resolve and point at the intended caption. They do not, and
-/// cannot, prove that Narrator reads any of it out loud; that stays on the
-/// manual list.
+/// The XAML is read as XML rather than by constructing the windows. That is not
+/// a compromise for this particular check: <c>ElementName</c> resolution *is* a
+/// lookup in the file's namescope, so a name declared by an <c>x:Name</c> in the
+/// same file is exactly what makes the binding work. Doing it this way needs no
+/// WPF Application, no STA thread and no desktop, which matters when CI is the
+/// only machine that ever runs it.
+///
+/// What it cannot show is that a screen reader speaks any of it. That stays on
+/// the manual list in the README.
 /// </summary>
-[Collection(WpfCollection.Name)]
 public class WindowAutomationTests
 {
-    private readonly WpfFixture _wpf;
+    private const string Settings = "Settings/SettingsWindow.xaml";
+    private const string Responder = "Responder/ResponderWindow.xaml";
+    private const string AiDialog = "Settings/AiScriptDialog.xaml";
 
-    public WindowAutomationTests(WpfFixture wpf) => _wpf = wpf;
-
-    /// <summary>Caption name → the text a screen reader should announce for the field.</summary>
-    private static readonly (string Field, string Caption, string Text)[] SettingsLabels =
+    /// <summary>Field → the caption naming it → the text a screen reader should announce.</summary>
+    public static TheoryData<string, string, string, string> Labels => new()
     {
-        ("HotkeyBox",          "HotkeyCaption",         "Keyboard shortcut for the bubble"),
-        ("OuterRadiusSlider",  "OuterRadiusCaption",    "Radius (outer)"),
-        ("InnerRadiusSlider",  "InnerRadiusCaption",    "Radius (inner)"),
-        ("StartAngleSlider",   "StartAngleCaption",     "Start angle"),
-        ("GapSlider",          "GapCaption",            "Gap between segments"),
-        ("CornerSlider",       "CornerCaption",         "Corner rounding"),
-        ("LabelBox",           "LabelCaption",          "Name"),
-        ("IconGlyphBox",       "IconCaption",           "Icon"),
-        ("ActionBox",          "ActionCaption",         "Action"),
-        ("TargetBox",          "TargetCaption",         "Target (path, folder, URL or command)"),
-        ("ArgumentsBox",       "ArgumentsCaption",      "Arguments (optional)"),
-        ("IconBox",            "IconImageCaption",      "Icon image (optional)"),
-        ("TintOpacitySlider",  "TintOpacityCaption",    "Glass opacity"),
-        ("TintColorBox",       "TintColorCaption",      "Glass colour"),
-        ("HighlightColorBox",  "HighlightColorCaption", "Accent colour"),
-        ("LabelColorBox",      "LabelColorCaption",     "Text colour"),
-        ("AiApiKeyBox",        "AiApiKeyCaption",       "API key"),
-        ("AiModelBox",         "AiModelCaption",        "Model"),
+        { Settings,  "HotkeyBox",         "HotkeyCaption",         "Keyboard shortcut for the bubble" },
+        { Settings,  "OuterRadiusSlider", "OuterRadiusCaption",    "Radius (outer)" },
+        { Settings,  "InnerRadiusSlider", "InnerRadiusCaption",    "Radius (inner)" },
+        { Settings,  "StartAngleSlider",  "StartAngleCaption",     "Start angle" },
+        { Settings,  "GapSlider",         "GapCaption",            "Gap between segments" },
+        { Settings,  "CornerSlider",      "CornerCaption",         "Corner rounding" },
+        { Settings,  "LabelBox",          "LabelCaption",          "Name" },
+        { Settings,  "IconGlyphBox",      "IconCaption",           "Icon" },
+        { Settings,  "ActionBox",         "ActionCaption",         "Action" },
+        { Settings,  "TargetBox",         "TargetCaption",         "Target (path, folder, URL or command)" },
+        { Settings,  "ArgumentsBox",      "ArgumentsCaption",      "Arguments (optional)" },
+        { Settings,  "IconBox",           "IconImageCaption",      "Icon image (optional)" },
+        { Settings,  "TintOpacitySlider", "TintOpacityCaption",    "Glass opacity" },
+        { Settings,  "TintColorBox",      "TintColorCaption",      "Glass colour" },
+        { Settings,  "HighlightColorBox", "HighlightColorCaption", "Accent colour" },
+        { Settings,  "LabelColorBox",     "LabelColorCaption",     "Text colour" },
+        { Settings,  "AiApiKeyBox",       "AiApiKeyCaption",       "API key" },
+        { Settings,  "AiModelBox",        "AiModelCaption",        "Model" },
+        { Responder, "SessionsList",      "SessionsCaption",       "Pending sessions" },
+        { Responder, "ReplyBox",          "ReplyCaption",          "Your reply" },
+        { AiDialog,  "DescriptionBox",    "DescriptionCaption",    "Describe what the script should do" },
+        { AiDialog,  "ScriptBox",         "ScriptCaption",         "Script — read this before you use it:" },
     };
 
-    [Fact]
-    public void Every_settings_field_is_labelled_by_the_caption_next_to_it()
+    [Theory]
+    [MemberData(nameof(Labels))]
+    public void Each_field_is_labelled_by_the_caption_next_to_it(
+        string file, string field, string caption, string text)
     {
-        _wpf.On(() =>
-        {
-            var window = new SettingsWindow(AppConfig.CreateDefault());
+        XDocument xaml = Xaml.Load(file);
 
-            foreach ((string field, string caption, string text) in SettingsLabels)
-            {
-                AssertLabelledBy(window, field, caption, text);
-            }
+        XElement target = Xaml.ByName(xaml, field)
+            ?? throw new Xunit.Sdk.XunitException($"{file} has no element named '{field}'.");
 
-            return true;
-        });
+        string? boundTo = Xaml.LabeledByElementName(target);
+        Assert.True(boundTo is not null, $"{field} in {file} has no LabeledBy binding.");
+        Assert.Equal(caption, boundTo);
+
+        XElement label = Xaml.ByName(xaml, caption)
+            ?? throw new Xunit.Sdk.XunitException(
+                $"{field} is labelled by '{caption}', which nothing in {file} declares. " +
+                "A LabeledBy binding to a name that does not resolve fails silently at runtime.");
+
+        Assert.Equal("TextBlock", label.Name.LocalName);
+        Assert.Equal(text, Xaml.TextOf(label));
     }
 
-    [Fact]
-    public void The_responder_labels_its_list_and_its_reply_box()
+    [Theory]
+    [InlineData(Settings)]
+    [InlineData(Responder)]
+    [InlineData(AiDialog)]
+    public void No_LabeledBy_binding_points_at_a_name_that_does_not_exist(string file)
     {
-        _wpf.On(() =>
-        {
-            using var inbox = new TempInbox();
-            var window = new ResponderWindow();
+        // The table above is maintained by hand, so it can fall behind. This
+        // sweeps whatever is actually in the file, which catches a pair added
+        // later and never added there.
+        XDocument xaml = Xaml.Load(file);
 
-            AssertLabelledBy(window, "SessionsList", "SessionsCaption", "Pending sessions");
-            AssertLabelledBy(window, "ReplyBox", "ReplyCaption", "Your reply");
-            return true;
-        });
+        foreach (XElement element in xaml.Descendants())
+        {
+            if (Xaml.LabeledByElementName(element) is not { } name)
+                continue;
+
+            XElement? label = Xaml.ByName(xaml, name);
+            Assert.True(label is not null,
+                $"LabeledBy on a {element.Name.LocalName} in {file} names '{name}', " +
+                "which resolves to nothing.");
+            Assert.Equal("TextBlock", label!.Name.LocalName);
+        }
     }
 
-    [Fact]
-    public void The_AI_dialog_labels_its_description_and_its_script()
-    {
-        _wpf.On(() =>
-        {
-            var window = new AiScriptDialog("sk-not-a-real-key", "claude-opus-5");
-
-            AssertLabelledBy(window, "DescriptionBox", "DescriptionCaption",
-                "Describe what the script should do");
-            AssertLabelledBy(window, "ScriptBox", "ScriptCaption",
-                "Script — read this before you use it:");
-            return true;
-        });
-    }
-
-    [Fact]
-    public void No_LabeledBy_binding_anywhere_points_at_a_name_that_does_not_exist()
-    {
-        // The list above is maintained by hand, so it can fall behind. This
-        // sweeps whatever is actually in the XAML, which catches a pair added
-        // later and never added here.
-        _wpf.On(() =>
-        {
-            AssertEveryLabelResolves(new SettingsWindow(AppConfig.CreateDefault()));
-
-            using (new TempInbox())
-                AssertEveryLabelResolves(new ResponderWindow());
-
-            AssertEveryLabelResolves(new AiScriptDialog("sk-not-a-real-key", "claude-opus-5"));
-            return true;
-        });
-    }
-
-    [Fact]
-    public void The_settings_window_has_every_label_pair_this_test_knows_about()
+    [Theory]
+    [InlineData(Settings, 18)]
+    [InlineData(Responder, 2)]
+    [InlineData(AiDialog, 2)]
+    public void Every_label_pair_this_test_knows_about_still_exists(string file, int expected)
     {
         // Guards the other direction: a pair silently deleted from the XAML.
-        int found = _wpf.On(() => CountLabelBindings(new SettingsWindow(AppConfig.CreateDefault())));
+        int found = Xaml.Load(file).Descendants().Count(e => Xaml.LabeledByElementName(e) is not null);
 
-        Assert.Equal(SettingsLabels.Length, found);
+        Assert.Equal(expected, found);
     }
 
-    [Fact]
-    public void The_buttons_that_are_only_a_symbol_say_what_they_do()
+    [Theory]
+    // "⟳" and "✨" are announced as unreadable codepoints without a name, and
+    // two buttons in the segment panel are both literally "Browse…".
+    [InlineData(Settings, "BrowseTargetBtn", "Browse for a target file")]
+    [InlineData(Settings, "BrowseIconBtn", "Browse for an icon image")]
+    [InlineData(Settings, "AiGenerateBtn", "Generate a script with AI")]
+    [InlineData(Settings, "AddBtn", "Add segment")]
+    [InlineData(Settings, "RemoveBtn", "Remove the selected segment")]
+    [InlineData(Settings, "UpBtn", "Move the selected segment up")]
+    [InlineData(Settings, "DownBtn", "Move the selected segment down")]
+    [InlineData(Settings, "NavList", "Settings sections")]
+    [InlineData(Settings, "SegmentsList", "Segments")]
+    [InlineData(Responder, "RefreshBtn", "Refresh the session list")]
+    [InlineData(Responder, "MessageBox", "Message from Claude Code")]
+    [InlineData(Responder, "SendBtn", "Send reply")]
+    [InlineData(Responder, "DismissBtn", "Dismiss this session")]
+    public void Controls_without_a_caption_name_themselves(string file, string element, string expected)
     {
-        // "⟳" and "✨" are announced as unreadable codepoints without a name,
-        // and two buttons in the segment panel are both literally "Browse…".
-        _wpf.On(() =>
+        XElement target = Xaml.ByName(Xaml.Load(file), element)
+            ?? throw new Xunit.Sdk.XunitException($"{file} has no element named '{element}'.");
+
+        Assert.Equal(expected, (string?)target.Attribute("AutomationProperties.Name"));
+    }
+
+    [Theory]
+    [InlineData(Settings)]
+    [InlineData(Responder)]
+    [InlineData(AiDialog)]
+    public void Every_button_template_recognises_access_keys(string file)
+    {
+        // RecognizesAccessKey defaults to false on a bare ContentPresenter, so
+        // without it Content="_Save" renders a literal underscore instead of a
+        // mnemonic. It is the easiest thing in the accessibility work to lose.
+        XDocument xaml = Xaml.Load(file);
+
+        var buttonTemplates = xaml.Descendants()
+            .Where(e => e.Name.LocalName == "ControlTemplate"
+                     && (string?)e.Attribute("TargetType") == "Button")
+            .ToList();
+
+        Assert.NotEmpty(buttonTemplates);
+
+        foreach (XElement template in buttonTemplates)
         {
-            var settings = new SettingsWindow(AppConfig.CreateDefault());
-            AssertName(settings, "BrowseTargetBtn", "Browse for a target file");
-            AssertName(settings, "BrowseIconBtn", "Browse for an icon image");
-            AssertName(settings, "AiGenerateBtn", "Generate a script with AI");
-            AssertName(settings, "AddBtn", "Add segment");
-            AssertName(settings, "NavList", "Settings sections");
+            XElement presenter = Assert.Single(
+                template.Descendants().Where(e => e.Name.LocalName == "ContentPresenter"));
 
-            using (new TempInbox())
-            {
-                var responder = new ResponderWindow();
-                AssertName(responder, "RefreshBtn", "Refresh the session list");
-                AssertName(responder, "MessageBox", "Message from Claude Code");
-            }
-
-            return true;
-        });
-    }
-
-    [Fact]
-    public void The_bubble_hides_its_internals_from_a_screen_reader()
-    {
-        // RadialMenuControl is Path geometry plus TextBlocks for the labels, so
-        // left alone it dumps every segment label — each behind an unreadable
-        // private-use glyph — into the tree, including in the settings preview
-        // where it is purely decorative.
-        _wpf.On(() =>
-        {
-            var control = new Overlay.RadialMenuControl();
-            control.Build(AppConfig.CreateDefault());
-
-            System.Windows.Automation.Peers.AutomationPeer peer =
-                System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(control);
-
-            Assert.NotNull(peer);
-            Assert.Empty(peer.GetChildren());
-            return true;
-        });
-    }
-
-    // ---- helpers -------------------------------------------------------------
-
-    private static void AssertLabelledBy(FrameworkElement window, string field, string caption, string text)
-    {
-        object? target = window.FindName(field);
-        Assert.True(target is not null, $"{field} does not exist in {window.GetType().Name}.");
-
-        object? label = window.FindName(caption);
-        Assert.True(label is TextBlock,
-            $"{field} is labelled by '{caption}', which is not a TextBlock in {window.GetType().Name}. " +
-            "A LabeledBy binding to a name that does not resolve fails silently at runtime.");
-
-        Assert.Equal(text, ((TextBlock)label!).Text);
-
-        Binding? binding = BindingOperations.GetBinding(
-            (DependencyObject)target!, AutomationProperties.LabeledByProperty);
-
-        Assert.True(binding is not null, $"{field} has no LabeledBy binding.");
-        Assert.Equal(caption, binding!.ElementName);
-    }
-
-    private static void AssertName(FrameworkElement window, string element, string expected)
-    {
-        object? target = window.FindName(element);
-        Assert.True(target is not null, $"{element} does not exist in {window.GetType().Name}.");
-        Assert.Equal(expected, AutomationProperties.GetName((DependencyObject)target!));
-    }
-
-    private static void AssertEveryLabelResolves(FrameworkElement window)
-    {
-        foreach (DependencyObject element in Descendants(window))
-        {
-            Binding? binding = BindingOperations.GetBinding(element, AutomationProperties.LabeledByProperty);
-            if (binding?.ElementName is not { Length: > 0 } name)
-                continue;
-
-            Assert.True(window.FindName(name) is TextBlock,
-                $"LabeledBy on a {element.GetType().Name} in {window.GetType().Name} names " +
-                $"'{name}', which resolves to nothing.");
+            Assert.Equal("True", (string?)presenter.Attribute("RecognizesAccessKey"));
         }
     }
 
-    private static int CountLabelBindings(FrameworkElement window) =>
-        Descendants(window).Count(e =>
-            BindingOperations.GetBinding(e, AutomationProperties.LabeledByProperty) is not null);
+    [Theory]
+    [InlineData(Settings)]
+    [InlineData(Responder)]
+    [InlineData(AiDialog)]
+    public void Every_custom_template_shows_keyboard_focus(string file)
+    {
+        // A templated control that repaints its own border needs the focused
+        // state in the template too, or keyboard focus is simply invisible.
+        XDocument xaml = Xaml.Load(file);
+
+        var templates = xaml.Descendants()
+            .Where(e => e.Name.LocalName == "ControlTemplate"
+                     && e.Attribute("TargetType") is not null)
+            .ToList();
+
+        Assert.NotEmpty(templates);
+
+        foreach (XElement template in templates)
+        {
+            string targetType = (string?)template.Attribute("TargetType") ?? "?";
+
+            bool hasFocusTrigger = template.Descendants()
+                .Any(e => e.Name.LocalName == "Trigger"
+                       && (string?)e.Attribute("Property") == "IsKeyboardFocused");
+
+            Assert.True(hasFocusTrigger,
+                $"The {targetType} template in {file} has no IsKeyboardFocused trigger, " +
+                "so keyboard focus is invisible in it.");
+        }
+    }
+
+    [Fact]
+    public void The_script_box_is_not_a_keyboard_trap()
+    {
+        // AcceptsTab made Tab insert a character with no way back out of the
+        // field, which is WCAG 2.1.2. It must stay gone.
+        XElement box = Xaml.ByName(Xaml.Load(AiDialog), "ScriptBox")!;
+
+        Assert.Null(box.Attribute("AcceptsTab"));
+    }
+
+    [Fact]
+    public void The_overlay_names_itself_for_a_screen_reader()
+    {
+        // Narrator reads a window's Title on activation, and the overlay had
+        // none — it would have appeared, taken focus and said nothing at all.
+        XDocument xaml = Xaml.Load("Overlay/RadialMenuWindow.xaml");
+        XElement window = xaml.Root!;
+
+        Assert.False(string.IsNullOrWhiteSpace((string?)window.Attribute("Title")));
+        Assert.False(string.IsNullOrWhiteSpace((string?)window.Attribute("AutomationProperties.Name")));
+
+        // The announcement proxy must stay Visible: a collapsed element has no
+        // automation peer, so it could be neither focused nor announced.
+        XElement proxy = Xaml.ByName(xaml, "AnnounceProxy")!;
+        Assert.Null(proxy.Attribute("Visibility"));
+        Assert.Equal("True", (string?)proxy.Attribute("Focusable"));
+    }
+}
+
+/// <summary>Reads the app's XAML off disk and answers questions about it.</summary>
+internal static class Xaml
+{
+    private static readonly string SourceRoot = FindSourceRoot();
+
+    public static XDocument Load(string relativePath)
+    {
+        string full = Path.Combine(SourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(File.Exists(full), $"XAML not found: {full}");
+        return XDocument.Load(full);
+    }
+
+    /// <summary>The element with this <c>x:Name</c>, or null.</summary>
+    public static XElement? ByName(XDocument xaml, string name) =>
+        xaml.Descendants().FirstOrDefault(e =>
+            e.Attributes().Any(a => a.Name.LocalName == "Name" && (string)a == name));
 
     /// <summary>
-    /// Every element in the window's logical tree, including inside panels that
-    /// are Collapsed — they are constructed regardless, which is what makes this
-    /// checkable without showing anything.
+    /// The <c>ElementName</c> of this element's LabeledBy binding, or null if it
+    /// has no such binding.
     /// </summary>
-    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    public static string? LabeledByElementName(XElement element)
     {
-        foreach (object? child in LogicalTreeHelper.GetChildren(root))
-        {
-            if (child is not DependencyObject node)
-                continue;
+        string? binding = (string?)element.Attribute("AutomationProperties.LabeledBy");
+        if (binding is null)
+            return null;
 
-            yield return node;
+        const string marker = "ElementName=";
+        int start = binding.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0)
+            return null;
 
-            foreach (DependencyObject deeper in Descendants(node))
-                yield return deeper;
-        }
+        string rest = binding[(start + marker.Length)..].TrimEnd('}', ' ');
+        int end = rest.IndexOfAny(new[] { ',', ' ' });
+        return end < 0 ? rest : rest[..end];
     }
 
-    /// <summary>Points the inbox at an empty temp directory for the duration.</summary>
-    private sealed class TempInbox : IDisposable
+    /// <summary>The Text attribute of a TextBlock, with XAML line wrapping collapsed.</summary>
+    public static string TextOf(XElement element)
     {
-        private readonly string _original;
-        private readonly string _dir;
+        string text = (string?)element.Attribute("Text") ?? element.Value;
+        return string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
 
-        public TempInbox()
-        {
-            _original = InboxStore.Dir;
-            _dir = Path.Combine(Path.GetTempPath(), "cursorbubble-ui-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_dir);
-            InboxStore.Dir = _dir;
-        }
+    /// <summary>
+    /// Walk up from the test assembly to the directory holding the solution, so
+    /// this works from any output path without the csproj copying files around.
+    /// </summary>
+    private static string FindSourceRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
 
-        public void Dispose()
-        {
-            InboxStore.Dir = _original;
-            try { Directory.Delete(_dir, recursive: true); } catch { /* temp dir */ }
-        }
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CursorBubble.sln")))
+            dir = dir.Parent;
+
+        Assert.True(dir is not null,
+            $"Could not find CursorBubble.sln above {AppContext.BaseDirectory}.");
+
+        return Path.Combine(dir!.FullName, "src", "CursorBubble");
     }
 }
