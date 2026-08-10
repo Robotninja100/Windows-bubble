@@ -146,16 +146,30 @@ public partial class RadialMenuWindow : Window
     public void ShowAt(ScreenPoint cursor) => ShowAt(cursor, MenuInputMode.Mouse, IntPtr.Zero);
 
     /// <summary>
-    /// Show the bubble centred on the work area of the monitor the pointer is on.
-    /// Used by the hotkey: a keyboard user has no reason to know or care where
-    /// the mouse pointer happens to be sitting.
+    /// Show the bubble around the mouse pointer, wherever it is.
+    ///
+    /// Used by the hotkey. It used to centre the bubble on the monitor instead,
+    /// on the reasoning that someone reaching for the keyboard does not care
+    /// where the mouse is sitting. In use the opposite turned out to hold: the
+    /// pointer is where you are already looking, and a bubble that opens
+    /// somewhere else pulls your eyes across the screen every single time. Both
+    /// ways in now put it in the same place, which is also one less thing to
+    /// explain.
+    ///
+    /// <see cref="ShowAt(ScreenPoint, MenuInputMode, IntPtr)"/> keeps the whole
+    /// ring inside the work area, so a pointer in a corner is already handled.
     /// </summary>
-    public void ShowCentred(MenuInputMode mode, IntPtr restoreTarget)
+    public void ShowAtCursor(MenuInputMode mode, IntPtr restoreTarget)
     {
-        if (!NativeMethods.GetCursorPos(out NativeMethods.POINT pointer))
-            pointer = new NativeMethods.POINT { x = 0, y = 0 };
+        if (NativeMethods.GetCursorPos(out NativeMethods.POINT pointer))
+        {
+            ShowAt(new ScreenPoint(pointer.x, pointer.y), mode, restoreTarget);
+            return;
+        }
 
-        (_, NativeMethods.RECT work) = GetMonitorMetrics(new ScreenPoint(pointer.x, pointer.y));
+        // No pointer position to be had — the middle of the primary monitor is a
+        // better answer than its top-left corner.
+        (_, NativeMethods.RECT work) = GetMonitorMetrics(new ScreenPoint(0, 0));
 
         var centre = new ScreenPoint(
             (work.left + work.right) / 2,

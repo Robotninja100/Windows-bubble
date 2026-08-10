@@ -24,9 +24,12 @@ normally: the context menu appears as soon as you release the right button.
 
 ### Without a mouse
 
-Press **Ctrl+Alt+Space** and the bubble opens in the middle of the screen,
-ready for the keyboard. The combination can be changed under **Settings →
-General**.
+Press **Ctrl+Alt+Space** and the bubble opens around your mouse pointer —
+the same place the gesture puts it — ready for the keyboard. The combination
+can be changed under **Settings → General**: click the field and press the keys
+you want. Worth knowing: if another program already claims the combination,
+CursorBubble says so in a tray notification and keeps the previous one, so pick
+another.
 
 | Key | What it does |
 | --- | --- |

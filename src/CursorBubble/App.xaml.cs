@@ -189,7 +189,7 @@ public partial class App : Application
         // Captured before anything is shown, and handed to the overlay so it can
         // put this window back in front before the chosen action runs.
         IntPtr previous = NativeMethods.GetForegroundWindow();
-        _overlay.ShowCentred(MenuInputMode.Keyboard, previous);
+        _overlay.ShowAtCursor(MenuInputMode.Keyboard, previous);
 
         // After the window is up: recording queues a background write, and
         // nothing may come between the hotkey message and the overlay taking

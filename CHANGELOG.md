@@ -45,7 +45,8 @@ interface. Changing what an existing key does is breaking; adding a key is not.
   no network code behind them — switchable off under **General**, and deletable
   in one click under **About**.
 - **A keyboard path to the bubble.** `Ctrl+Alt+Space` — configurable under
-  Settings → General — opens it centred on the screen. Arrows and `Tab` walk the
+  Settings → General — opens it around the mouse pointer, the same place the
+  gesture puts it. Arrows and `Tab` walk the
   ring, `1`–`9` jump straight to a shortcut, `Home`/`End` go to the ends, `Enter`
   runs, `Esc` cancels, and pressing the hotkey again closes it. It opens with
   nothing selected, so a reflexive `Enter` cancels rather than running something

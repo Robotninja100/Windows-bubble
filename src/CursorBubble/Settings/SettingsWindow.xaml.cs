@@ -973,8 +973,8 @@ public partial class SettingsWindow : Window
     }
 
     private const string HotkeyDescription =
-        "Opens the bubble in the middle of the screen. Arrow keys or 1-9 to choose, " +
-        "Enter to run, Escape to cancel.";
+        "Opens the bubble around your mouse pointer, the same place the gesture does. " +
+        "Arrow keys or 1-9 to choose, Enter to run, Escape to cancel.";
 
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {
