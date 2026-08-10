@@ -90,6 +90,23 @@ jobs:
           -p:PublishSingleFile=true
           -o publish
 
+      # The artifact is one file, so anything the app needs that is *not* in
+      # that file is a download that crashes on the user's machine and leaves
+      # nothing behind to explain why. That is exactly what happened with WPF's
+      # native libraries, which single-file publishing leaves loose unless it
+      # is told otherwise (see IncludeNativeLibrariesForSelfExtract).
+      - name: Check the exe really is self-contained
+        shell: pwsh
+        run: |
+          $loose = Get-ChildItem publish -File | Where-Object { $_.Extension -notin '.exe', '.pdb' }
+          if ($loose) {
+            $loose | ForEach-Object { Write-Host "left beside the exe: $($_.Name)" }
+            Write-Error "Publishing left files next to CursorBubble.exe; the uploaded exe would be incomplete."
+            exit 1
+          }
+          $size = (Get-Item publish/CursorBubble.exe).Length
+          Write-Host ("CursorBubble.exe is self-contained ({0:N0} bytes)." -f $size)
+
       - name: Upload CursorBubble.exe
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

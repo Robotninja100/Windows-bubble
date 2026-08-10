@@ -75,6 +75,15 @@ interface. Changing what an existing key does is breaking; adding a key is not.
 
 ### Fixed
 
+- **The published `CursorBubble.exe` crashed on startup and said nothing.**
+  Single-file publishing bundles managed assemblies only; WPF's native
+  libraries were left as loose files beside the exe, and both workflows shipped
+  just the exe. The download started, loaded, and died with a
+  `DllNotFoundException` the moment WPF hooked its first window procedure —
+  before the app's own crash handling exists, so it wrote no log and looked
+  like a program that simply did nothing. The native libraries are now inside
+  the file, and CI fails the build if publishing ever leaves anything beside it
+  again.
 - **Linking to Claude Code could destroy `~/.claude/settings.json`.** A file
   that existed but did not parse fell through to an empty object which was then
   written straight over the top, silently replacing the user's entire Claude
