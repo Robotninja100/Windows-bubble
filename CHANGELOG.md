@@ -28,8 +28,26 @@ interface. Changing what an existing key does is breaking; adding a key is not.
 
 ### Added
 
+- **The settings window is the app now.** It opens on an **Overview** page:
+  tiles for how often the bubble has been opened (and by which route), how many
+  actions it has run, your favourite segment, your streak of consecutive days
+  and an estimate of the time saved; a ranking of your busiest segments; a set
+  of facts drawn from the same numbers; and a row per group of settings that
+  takes you to it. The sidebar carries the app's identity, an icon per page and
+  a live line of statistics; each page has a title and a sentence saying what it
+  is for; the live preview appears only on the three pages that change how the
+  bubble looks; the footer says when something is unsaved, and closing the
+  window from the title bar asks before discarding it. **About** is new too:
+  version, where every file lives, and buttons that open them.
+- **Usage counters**, in `%APPDATA%\CursorBubble\usage.json` beside the
+  settings. Opens by route, actions per segment and per kind, cancels, generated
+  scripts, and about a year of active days for the streak. Local only — there is
+  no network code behind them — switchable off under **General**, and deletable
+  in one click under **About**.
 - **A keyboard path to the bubble.** `Ctrl+Alt+Space` — configurable under
-  Settings → General — opens it centred on the screen. Arrows and `Tab` walk the
+  Settings → General — opens it around the mouse pointer, the same place the
+  gesture puts it, and it then answers to the keyboard *and* the mouse: hover a
+  segment and click to run it, click the middle to cancel. Arrows and `Tab` walk the
   ring, `1`–`9` jump straight to a shortcut, `Home`/`End` go to the ends, `Enter`
   runs, `Esc` cancels, and pressing the hotkey again closes it. It opens with
   nothing selected, so a reflexive `Enter` cancels rather than running something
@@ -59,6 +77,15 @@ interface. Changing what an existing key does is breaking; adding a key is not.
 
 ### Fixed
 
+- **The published `CursorBubble.exe` crashed on startup and said nothing.**
+  Single-file publishing bundles managed assemblies only; WPF's native
+  libraries were left as loose files beside the exe, and both workflows shipped
+  just the exe. The download started, loaded, and died with a
+  `DllNotFoundException` the moment WPF hooked its first window procedure —
+  before the app's own crash handling exists, so it wrote no log and looked
+  like a program that simply did nothing. The native libraries are now inside
+  the file, and CI fails the build if publishing ever leaves anything beside it
+  again.
 - **Linking to Claude Code could destroy `~/.claude/settings.json`.** A file
   that existed but did not parse fell through to an empty object which was then
   written straight over the top, silently replacing the user's entire Claude

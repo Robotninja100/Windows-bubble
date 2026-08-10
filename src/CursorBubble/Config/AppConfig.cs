@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using CursorBubble.Controls;
 using CursorBubble.Native;
 
 namespace CursorBubble.Config;
@@ -14,7 +15,7 @@ public sealed class SegmentConfig
 
     /// <summary>
     /// Optional built-in icon: a single glyph from the Segoe Fluent Icons /
-    /// Segoe MDL2 Assets system font (e.g. "" for a folder). Empty = none.
+    /// Segoe MDL2 Assets system font (see <see cref="Glyphs"/>). Empty = none.
     /// Ignored when <see cref="IconPath"/> points at an existing image.
     /// </summary>
     public string? Glyph { get; set; }
@@ -111,6 +112,17 @@ public sealed class AppConfig
     public bool StartWithWindows { get; set; }
 
     /// <summary>
+    /// Count how the bubble is used, for the Overview page.
+    ///
+    /// The counters live in <c>usage.json</c> next to this file and go nowhere
+    /// else: there is no network code behind them, and there is a button on the
+    /// About page that deletes them. On by default because the page is the
+    /// reason it exists — but it is a switch, because "how often do you use
+    /// this" is nobody's business but the user's.
+    /// </summary>
+    public bool CollectUsageStats { get; set; } = true;
+
+    /// <summary>
     /// Encrypted (DPAPI, per-user) Anthropic API key as persisted in config.json.
     /// Use <see cref="AiApiKey"/> to read/write the plain-text value.
     /// </summary>
@@ -153,38 +165,38 @@ public sealed class AppConfig
         var cfg = new AppConfig();
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Open\nDocuments", Glyph = "",
+            Label = "Open\nDocuments", Glyph = Glyphs.Folder,
             Action = ActionType.OpenPath, Target = "%USERPROFILE%\\Documents"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Open\nBrowser", Glyph = "",
+            Label = "Open\nBrowser", Glyph = Glyphs.Globe,
             Action = ActionType.OpenPath, Target = "https://www.google.com"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Calculator", Glyph = "",
+            Label = "Calculator", Glyph = Glyphs.Calculator,
             Action = ActionType.LaunchProgram, Target = "calc.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Run Backup\nScript", Glyph = "",
+            Label = "Run Backup\nScript", Glyph = Glyphs.Save,
             Action = ActionType.RunScript,
             Target = "powershell -NoProfile -Command \"Write-Host 'Replace this with your own backup script'\""
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Open\nPowerShell", Glyph = "",
+            Label = "Open\nPowerShell", Glyph = Glyphs.Terminal,
             Action = ActionType.LaunchProgram, Target = "powershell.exe"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Open\nSettings", Glyph = "",
+            Label = "Open\nSettings", Glyph = Glyphs.Settings,
             Action = ActionType.OpenPath, Target = "ms-settings:"
         });
         cfg.Segments.Add(new SegmentConfig
         {
-            Label = "Claude Code", Glyph = "",
+            Label = "Claude Code", Glyph = Glyphs.Message,
             Action = ActionType.ClaudeInbox
         });
         return cfg;

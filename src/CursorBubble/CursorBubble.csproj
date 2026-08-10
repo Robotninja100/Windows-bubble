@@ -15,6 +15,21 @@
          manifest. This is a WPF app (WinForms is only used for the tray icon),
          so the manifest is the right place for them. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
+
+    <!-- Put WPF's native libraries inside the single file too.
+
+         PublishSingleFile bundles managed assemblies and nothing else by
+         default: the native ones (PresentationNative_cor3.dll and friends)
+         are written next to the exe as ordinary files. Both workflows then
+         published "the exe" and shipped only that, so what people downloaded
+         started, loaded, and died the instant WPF hooked its first window
+         procedure — DllNotFoundException in NativeMethodsSetLastError, before
+         any of this app's own error handling exists, which is why it left no
+         log behind and looked like nothing had happened at all.
+
+         Set here rather than in the workflows because there are two of them
+         and a third way to publish is `dotnet publish` by hand. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <!-- Shown in the file properties of the built exe, and by Windows in the
