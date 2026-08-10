@@ -31,6 +31,10 @@ you want. Worth knowing: if another program already claims the combination,
 CursorBubble says so in a tray notification and keeps the previous one, so pick
 another.
 
+A bubble opened this way answers to **both**: use the keys below, or just move
+the mouse over a segment and click. Clicking the middle — or anywhere outside
+the ring — cancels, exactly as releasing there does on the gesture.
+
 | Key | What it does |
 | --- | --- |
 | `→` `↓` `Tab` | Next shortcut, clockwise |

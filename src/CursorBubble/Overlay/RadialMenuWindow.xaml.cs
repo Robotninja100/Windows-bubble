@@ -15,10 +15,16 @@ namespace CursorBubble.Overlay;
 /// <summary>
 /// The transparent, top-most overlay window that hosts the glass radial menu.
 ///
-/// It never takes focus and is positioned in physical pixels via SetWindowPos
-/// so it stays centred on the cursor across monitors and DPI scales. Hit-testing
-/// is driven entirely by the global cursor position (the window itself is
-/// hit-test transparent), which keeps it robust while a mouse button is held.
+/// Positioned in physical pixels via SetWindowPos, so it stays centred on the
+/// cursor across monitors and DPI scales.
+///
+/// It behaves as two windows, depending on how it was opened
+/// (<see cref="MenuInputMode"/>). Opened by the gesture it never takes focus and
+/// is hit-test transparent: selection comes from the global cursor position
+/// reported by the hook, which is what keeps it working while a mouse button is
+/// held and what keeps it from disturbing the app underneath. Opened by the
+/// hotkey it takes the foreground and answers to both the keyboard and the
+/// mouse, because by then it has already interrupted whatever was in front.
 /// </summary>
 public partial class RadialMenuWindow : Window
 {
@@ -123,6 +129,11 @@ public partial class RadialMenuWindow : Window
             NativeMethods.SWP_FRAMECHANGED);
 
         Focusable = mode == MenuInputMode.Keyboard;
+
+        // The Win32 styles above decide whether clicks reach this window at all;
+        // this decides whether WPF then routes them. Both have to agree, or the
+        // keyboard bubble is clickable everywhere except in WPF's own opinion.
+        IsHitTestVisible = mode == MenuInputMode.Keyboard;
     }
 
     /// <summary>(Re)apply the desktop blur, clipped to the glass segments.</summary>
@@ -460,6 +471,58 @@ public partial class RadialMenuWindow : Window
         double dxDip = (cursor.X - _centerX) / _scale;
         double dyDip = (cursor.Y - _centerY) / _scale;
         SetSelection(_menu.HitTest(dxDip, dyDip));
+    }
+
+    // ---- mouse on the keyboard path -----------------------------------------
+    //
+    // The gesture never comes through here: that window is click-through and is
+    // driven by the global hook, which is what keeps it from disturbing the app
+    // underneath while a button is held. A bubble opened by the hotkey has no
+    // such constraint — it already owns the foreground — so the mouse may as
+    // well work too. Having to finish with the keyboard purely because of how
+    // the bubble happened to open is a rule with nothing behind it.
+
+    /// <summary>
+    /// The segment under a point given in this window's own coordinates.
+    ///
+    /// <see cref="UpdateCursor"/> converts physical screen pixels because that
+    /// is what the hook reports. A WPF mouse event is already in
+    /// device-independent units relative to this window, so it only needs the
+    /// centre subtracted — and the centre is half the ring's design size, which
+    /// is exactly what the window was sized to.
+    /// </summary>
+    private int HitTestLocal(Point local) =>
+        _menu.HitTest(local.X - _menu.Diameter / 2.0, local.Y - _menu.Diameter / 2.0);
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+
+        if (_mode != MenuInputMode.Keyboard || !IsOpen)
+            return;
+
+        SetSelection(HitTestLocal(e.GetPosition(this)));
+    }
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonUp(e);
+
+        if (_mode != MenuInputMode.Keyboard || !IsOpen)
+            return;
+
+        e.Handled = true;
+
+        // Hit-tested here rather than trusting the last move: a click is the
+        // whole instruction and should not depend on a move event having
+        // arrived first.
+        SetSelection(HitTestLocal(e.GetPosition(this)));
+
+        // The same road out as Enter and as the gesture's button release: the
+        // app asks for the selection and runs it. Clicking the dead zone — or
+        // the corners outside the ring — selects nothing, which cancels, which
+        // is what releasing in the centre does on the gesture.
+        CommitRequested?.Invoke();
     }
 
     /// <summary>Hide the bubble and return the segment that was selected (or null).</summary>
